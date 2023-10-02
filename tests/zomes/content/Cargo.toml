@@ -1,0 +1,15 @@
+[package]
+name = "content"
+version = "0.0.0"
+edition = "2018"
+
+[lib]
+name = "content"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+getrandom = { version = "=0.2.7", features = ["custom"] } # temporary fix for compile error in
+                                                          # - v0.2.1
+serde = "1"
+# whi_hdi_extensions = "0.2"
+whi_hdk_extensions = "0.2"

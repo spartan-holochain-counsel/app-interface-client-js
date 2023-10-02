@@ -1,17 +1,12 @@
 import { Logger }			from '@whi/weblogger';
 const log				= new Logger("test-basic", process.env.LOG_LEVEL );
 
-import why				from 'why-is-node-running';
-
-import path				from 'path';
 import crypto				from 'crypto';
 
 import { expect }			from 'chai';
 
 import json				from '@whi/json';
-import { Connection }			from '@spartan-hc/holochain-websocket';
 import {
-    HoloHash,
     DnaHash,
     AgentPubKey,
 }					from '@spartan-hc/holo-hash';
@@ -19,14 +14,13 @@ import {
 import { expect_reject }		from '../utils.js';
 import {
     AppInterfaceClient,
-    CellInterface,
-    ZomeInterface,
+    CellZomelets,
+    Zomelet,
 }					from '../../src/node.js';
 
 
 const APP_PORT				= 28746;
 const APP_ID				= "some_app_id";
-const conn				= new Connection( APP_PORT );
 
 const AGENT_HASH			= new AgentPubKey( crypto.randomBytes(32) );
 const DNA_HASH				= new DnaHash( crypto.randomBytes(32) );
@@ -42,7 +36,7 @@ function basic_tests () {
     let cell_spec;
 
     it("should create app interface client", async function () {
-	client				= new AppInterfaceClient( conn, { timeout: 10 });
+	client				= new AppInterfaceClient( APP_PORT, { timeout: 10 });
 
 	expect( k(client.agents)	).to.have.length( 0 );
     });
@@ -64,7 +58,7 @@ function basic_tests () {
     });
 
     it("should create zome interface", async function () {
-	zome_spec			= new ZomeInterface({
+	zome_spec			= new Zomelet({
 	    some_zome_fn ( args ) {
 		return this.call( args );
 	    },
@@ -74,7 +68,7 @@ function basic_tests () {
     });
 
     it("should create cell interface", async function () {
-	cell_spec			= new CellInterface({
+	cell_spec			= new CellZomelets({
 	    "zome_01": zome_spec,
 	    "zome_02": {
 		some_zome_fn ( args ) {
@@ -92,13 +86,9 @@ function basic_tests () {
 function errors_tests () {
 }
 
-describe("Integration: Agent Client", () => {
+describe("Class Hierarchy", () => {
 
     describe("Basic",		basic_tests );
     describe("Errors",		errors_tests );
-
-    after(async function () {
-	await conn.close();
-    });
 
 });

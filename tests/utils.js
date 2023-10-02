@@ -7,7 +7,14 @@ export async function expect_reject ( cb, error, message ) {
 	await cb();
     } catch (err) {
 	failed				= true;
-	expect( () => { throw err }	).to.throw( error, message );
+	if ( typeof error === "string" ) {
+	    expect( String(err)		).to.have.string( error );
+
+	    if ( message !== undefined )
+		expect( String(err)	).to.have.string( message );
+	} else {
+	    expect( () => { throw err }	).to.throw( error, message );
+	}
     }
     expect( failed			).to.be.true;
 }

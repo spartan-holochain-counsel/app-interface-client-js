@@ -47,6 +47,25 @@ export function reformat_cell_id ( cell_id ) {
 }
 
 export async function reformat_app_info ( app_info ) {
+    // {
+    //     installed_app_id: 'test-alice',
+    //     cell_info: { storage: [ [Object] ] },
+    //     status: { running: null },
+    //     agent_pub_key: Uint8Array(39) [
+    //         132,  32,  36, 231,  86,  88, 237, 207,  77,
+    //         37, 136,  27,  14,  52,  20, 134, 197,  46,
+    //         239, 162, 166, 213, 176, 112,  67,  44, 178,
+    //         6, 164,  13, 102, 193,  24, 108, 122, 152,
+    //         95, 205,  67
+    //     ],
+    //     manifest: {
+    //         manifest_version: '1',
+    //         name: 'Storage',
+    //         description: 'Simple byte storage',
+    //         roles: [ [Object] ]
+    //     }
+    // }
+
     // app_info.cell_info		- Map of role name to cell list
     // app_info.cell_info[ role name ]	- 1 Provisioned cell, followed by cloned or stem cells
 
@@ -93,10 +112,27 @@ export async function reformat_app_info ( app_info ) {
     return app_info;
 }
 
+export function is_type ( target, type ) {
+    if ( typeof target !== "object" )
+	return typeof target === type;
+
+    if ( target === null )
+	return type === "null";
+
+    return target?.constructor?.name === type;
+}
+
+export function assert ( target, type, err_msg ) {
+    if ( is_type( target, type ) === false )
+	throw new TypeError( err_msg || `Target '${target}' did not match type '${type}'` );
+}
+
 
 export default {
     heritage,
     set_tostringtag,
     reformat_cell_id,
     reformat_app_info,
+    is_type,
+    assert,
 };

@@ -14,9 +14,11 @@ import {
     HoloHash,
     DnaHash,
     AgentPubKey,
+    EntryHash,
 }					from '@spartan-hc/holo-hash';
 import HolochainBackdrop		from '@spartan-hc/holochain-backdrop';
 const { Holochain }			= HolochainBackdrop;
+// import { MereMemoryZomelet }		from '@spartan-hc/mere-memory-sdk';
 
 import {
     expect_reject,
@@ -24,13 +26,14 @@ import {
 }					from '../utils.js';
 import {
     AppInterfaceClient,
-    CellInterface,
-    ZomeInterface,
+    CellZomelets,
+    // Transformer,
 }					from '../../src/node.js';
 
 
 const __dirname				= path.dirname( new URL(import.meta.url).pathname );
-const HAPP_PATH				= path.join( __dirname, "../packs/storage.happ" );
+const DNA_PATH				= path.join( __dirname, "../content_dna.dna" );
+// const HAPP_PATH				= path.join( __dirname, "../packs/storage.happ" );
 const APP_PORT				= 23_567;
 let agents				= {};
 
@@ -44,7 +47,9 @@ describe("App Client", function () {
 	this.timeout( 60_000 );
 
 	const actors			= await holochain.backdrop({
-	    "test": HAPP_PATH,
+	    "test": { // HAPP_PATH,
+		"content": DNA_PATH,
+	    },
 	}, {
 	    "app_port": APP_PORT,
 	});
@@ -59,16 +64,26 @@ describe("App Client", function () {
     });
 });
 
-const DNA_NAME				= "storage";
-const MAIN_ZOME				= "mere_memory_api";
+// const DNA_NAME				= "storage";
+// const MAIN_ZOME				= "mere_memory_api";
 
-const mere_memory_spec			= new CellInterface({
-    [MAIN_ZOME]: {
-	save_bytes ( args ) {
-	    console.log( this );
-	    return this.call( args );
-	},
+
+// const mere_memory_spec			= new CellZomelets({
+//     [MAIN_ZOME]: MereMemoryZomelet,
+// }, {
+//     "logging": "debug",
+// });
+const content_spec			= new CellZomelets({
+    "content_csr": {
+	async create_content ( name, content ) {
+	    return await this.call({
+		name,
+		content,
+	    });
+	}
     },
+}, {
+    "logging": "debug",
 });
 
 const k					= obj => Object.keys( obj );
@@ -80,7 +95,9 @@ function basic_tests () {
     let app_client;
 
     it("should create app interface client", async function () {
-	client				= new AppInterfaceClient( APP_PORT );
+	client				= new AppInterfaceClient( APP_PORT, {
+	    // "logging": "warn",
+	});
 
 	expect( k(client.agents)	).to.have.length( 0 );
     });
@@ -95,27 +112,50 @@ function basic_tests () {
 
     it("should use a cell interface", async function () {
 	this.timeout( 30_000 );
-	console.log( app_client.roles );
 
-	app_client.setCellInterface( DNA_NAME, mere_memory_spec );
+	app_client.setCellZomelets( "content", content_spec );
 
-	console.log( app_client.cells );
 	const {
-	    storage,
-	}				= app_client.cells;
-	console.log( storage.zomes );
-	const {
-	    mere_memory_api,
-	}				= storage.zomes;
-	console.log( mere_memory_api.functions );
-	const {
-	    save_bytes,
-	}				= mere_memory_api.functions;
+	    create_content,
+	}				= app_client.cells.content.zomes.content_csr.functions;
 
-	const addr			= await save_bytes( "Hello world" );
+	const addr			= await create_content( "greeting", "Hello world" );
 
-	expect( addr			).to.be.a("EntryHash");
+	expect( addr			).to.be.a("ActionHash");
     });
+
+    // it("should use a cell interface", async function () {
+    // 	this.timeout( 30_000 );
+
+    // 	app_client.setCellZomelets( DNA_NAME, mere_memory_spec );
+
+    // 	const {
+    // 	    save,
+    // 	    save_bytes,
+    // 	    retrieve_bytes,
+    // 	}				= app_client.cells.storage.zomes.mere_memory_api.functions;
+
+    // 	{
+    // 	    const addr			= await save_bytes( "Hello world" );
+
+    // 	    expect( addr		).to.be.a("EntryHash");
+
+    // 	    const bytes			= await retrieve_bytes( addr.bytes() );
+
+    // 	    expect( bytes		).to.be.a("Uint8Array");
+
+    // 	    const text			= bytes.toString("utf8");
+
+    // 	    expect( text		).to.equal( "Hello world" );
+    // 	}
+
+    // 	{
+    // 	    const bytes			= crypto.randomBytes( 10_000 );
+    // 	    const addr			= await save( bytes );
+
+    // 	    expect( addr		).to.be.a("EntryHash");
+    // 	}
+    // });
 
     after(async function () {
 	await client.close();
