@@ -123,39 +123,6 @@ function basic_tests () {
 	expect( addr			).to.be.a("ActionHash");
     });
 
-    // it("should use a cell interface", async function () {
-    // 	this.timeout( 30_000 );
-
-    // 	app_client.setCellZomelets( DNA_NAME, mere_memory_spec );
-
-    // 	const {
-    // 	    save,
-    // 	    save_bytes,
-    // 	    retrieve_bytes,
-    // 	}				= app_client.cells.storage.zomes.mere_memory_api.functions;
-
-    // 	{
-    // 	    const addr			= await save_bytes( "Hello world" );
-
-    // 	    expect( addr		).to.be.a("EntryHash");
-
-    // 	    const bytes			= await retrieve_bytes( addr.bytes() );
-
-    // 	    expect( bytes		).to.be.a("Uint8Array");
-
-    // 	    const text			= bytes.toString("utf8");
-
-    // 	    expect( text		).to.equal( "Hello world" );
-    // 	}
-
-    // 	{
-    // 	    const bytes			= crypto.randomBytes( 10_000 );
-    // 	    const addr			= await save( bytes );
-
-    // 	    expect( addr		).to.be.a("EntryHash");
-    // 	}
-    // });
-
     after(async function () {
 	await client.close();
     });

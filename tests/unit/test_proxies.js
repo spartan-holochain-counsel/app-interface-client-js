@@ -47,7 +47,7 @@ function zomes_errors_tests () {
 
 	await expect_reject(async () => {
 	    zomes.unknown_zome
-	}, "does not have a defined Zomelet" );
+	}, "does not exist in Zomelet" );
     });
 
 }
@@ -70,7 +70,7 @@ function funcs_errors_tests () {
 
 	await expect_reject(async () => {
 	    funcs.bad_function		= true;
-	}, "Expected value to be a 'function'" );
+	}, "Expected a 'function'" );
     });
 
     it("should fail to get unknown function", async function () {
@@ -78,7 +78,7 @@ function funcs_errors_tests () {
 
 	await expect_reject(async () => {
 	    funcs.unknown_function
-	}, "is not defined in Zomelet" );
+	}, "does not have a defined function in Zomelet" );
     });
 
 }
