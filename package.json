@@ -32,7 +32,7 @@
     "@spartan-hc/holo-hash": "^0.5.4",
     "@spartan-hc/holochain-serialization": "^0.1.4",
     "@spartan-hc/holochain-websocket": "^0.1.8",
-    "@spartan-hc/zomelets": "^0.1.0",
+    "@spartan-hc/zomelets": "^0.1.2",
     "@whi/json": "^0.1.7"
   },
   "devDependencies": {
