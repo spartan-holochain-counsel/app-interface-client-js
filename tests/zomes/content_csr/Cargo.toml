@@ -10,4 +10,3 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 content = { path = "../content" }
 serde = "1"
-# whi_hdk_extensions = "0.2"

@@ -127,6 +127,10 @@ export function assert ( target, type, err_msg ) {
 	throw new TypeError( err_msg || `Target '${target}' did not match type '${type}'` );
 }
 
+function nonce () {
+    return crypto.getRandomValues( new Uint8Array(32) );
+}
+
 
 export default {
     heritage,
@@ -135,4 +139,5 @@ export default {
     reformat_app_info,
     is_type,
     assert,
+    nonce,
 };

@@ -5,7 +5,7 @@
   "type": "module",
   "main": "src/node.js",
   "module": "src/index.js",
-  "browser": "dist/holochain-app-client.js",
+  "browser": "dist/holochain-app-interface-client.js",
   "files": [
     "README.md",
     "src/node.js",
@@ -24,17 +24,19 @@
     "url": "https://github.com/spartan-holochain-counsel/app-interface-client-js/"
   },
   "dependencies": {
-    "@msgpack/msgpack": "^3.0.0-beta2",
+    "@msgpack/msgpack": "^2.7.0",
     "@noble/ed25519": "^2.0.0",
     "@spartan-hc/holo-hash": "^0.5.4",
     "@spartan-hc/holochain-serialization": "^0.1.4",
-    "@spartan-hc/holochain-websocket": "^0.1.8"
+    "@spartan-hc/holochain-websocket": "^0.1.8",
+    "@spartan-hc/zomelets": "file:../holochain-zomelets-js",
+    "@whi/json": "^0.1.7"
   },
   "devDependencies": {
     "@spartan-hc/holochain-admin-client": "^0.1.6",
     "@spartan-hc/holochain-backdrop": "^2.2.3",
+    "@spartan-hc/mere-memory-sdk": "file:../mere-memory-sdk",
     "@whi/http": "^0.2.3",
-    "@whi/json": "^0.1.7",
     "@whi/weblogger": "^0.1.6",
     "chai": "^4.3.4",
     "mocha": "^10.1.0",

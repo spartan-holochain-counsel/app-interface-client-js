@@ -8,8 +8,6 @@ name = "content"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-getrandom = { version = "=0.2.7", features = ["custom"] } # temporary fix for compile error in
-                                                          # - v0.2.1
 serde = "1"
-# whi_hdi_extensions = "0.2"
-whi_hdk_extensions = "0.2"
+rmpv = { version = "=1.0.0", features = ["with-serde"] }
+whi_hdk_extensions = "=0.2.1"

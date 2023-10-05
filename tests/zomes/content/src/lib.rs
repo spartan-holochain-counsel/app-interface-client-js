@@ -1,28 +1,29 @@
-
+pub use hdk_extensions::hdi;
 pub use hdk_extensions::hdk;
-pub use hdk_extensions;
-pub use hdk_extensions::hdi_extensions::hdi;
 pub use hdk_extensions::hdi_extensions;
+pub use hdk_extensions;
 
-use hdk_extensions::hdk::prelude::debug;
 use hdi::prelude::*;
+use hdk::prelude::debug;
 use hdi_extensions::{
     ScopedTypeConnector,
     scoped_type_connector,
+};
+pub use hdi_extensions::{
     // Macros
-    valid,
+    valid, invalid,
 };
 
 
+
 //
-// Something Entry
+// Content Entry
 //
 #[hdk_entry_helper]
 #[derive(Clone)]
-pub struct SomethingEntry {
+pub struct ContentEntry {
     pub name: String,
     pub content: String,
-    pub published_at: Option<String>,
 }
 
 
@@ -33,12 +34,12 @@ pub struct SomethingEntry {
 #[unit_enum(EntryTypesUnit)]
 pub enum EntryTypes {
     #[entry_def]
-    Something(SomethingEntry),
+    Content(ContentEntry),
 }
 
 scoped_type_connector!(
-    EntryTypesUnit::Something,
-    EntryTypes::Something( SomethingEntry )
+    EntryTypesUnit::Content,
+    EntryTypes::Content( ContentEntry )
 );
 
 

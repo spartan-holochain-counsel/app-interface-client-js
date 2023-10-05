@@ -20,9 +20,11 @@ import {
     CellZomelets,
     Zomelet,
 }					from '@spartan-hc/zomelets';
+import json				from '@whi/json';
 
 import utils				from './utils.js';
 import { Base }				from './base_classes.js';
+import { HoloHashMap }			from './holo_hash_map.js';
 import {
     ScopedCellZomelets,
     ScopedZomelet,
@@ -42,24 +44,12 @@ export {
 
 
 
-const holo_hash_proxy_config		= {
-};
-
-function HoloHashProxy ( target = {} ) {
-    return new Proxy( target, holo_hash_proxy_config );
-}
-
-function nonce () {
-    return crypto.getRandomValues( new Uint8Array(32) );
-}
-
-
 export class AppInterfaceClient extends Base {
     static defaults			= {
 	"timeout":		60_000, // 60s
     };
     #conn				= null;
-    #agents				= HoloHashProxy();
+    #agents				= new HoloHashMap();
 
     constructor ( connection, options ) {
 	if ( arguments[0]?.constructor?.name === "AppInterfaceClient" )
@@ -77,7 +67,8 @@ export class AppInterfaceClient extends Base {
     }
 
     get agents () {
-	return Object.assign( {}, this.#agents );
+	return Object.fromEntries( this.#agents );
+	// return Object.assign( {}, this.#agents );
     }
 
     get conn () {
@@ -85,12 +76,12 @@ export class AppInterfaceClient extends Base {
     }
 
     agent ( pubkey ) {
-	if ( this.#agents[ pubkey ] )
+	if ( this.#agents.get( pubkey ) )
 	    throw new Error(`Agent ${pubkey} is already set`);
 
-	const agent_ctx			= new AgentContext( this, pubkey );
+	const agent_ctx			= new AgentContext( this, pubkey, this.set_options );
 
-	this.#agents[ pubkey ]		= agent_ctx;
+	this.#agents.set( agent_ctx.cell_agent, agent_ctx );
 
 	return agent_ctx;
     }
@@ -98,7 +89,7 @@ export class AppInterfaceClient extends Base {
     async app ( app_id ) {
 	const app_info			= await this.appInfo( app_id );
 
-	this.log.trace( app_info );
+	this.log.trace("App info for ID '%s':", app_id, app_info );
 	const roles			= {};
 	for ( let [name,cell] of Object.entries( app_info.roles ) ) {
 	    roles[ name ]		= cell.cell_id[0];
@@ -113,7 +104,9 @@ export class AppInterfaceClient extends Base {
     async request ( method, args, timeout ) {
 	await this.conn.open();
 
-	this.log.trace("RAW REQUEST '%s' (timeout: %s):", method, timeout || null, args );
+	this.log.trace("RAW REQUEST '%s' (timeout: %s):", () => [
+	    method, timeout || null, json.debug(args)
+	]);
 	return await this.conn.request( method, args, timeout || this.options?.timeout );
     }
 
@@ -122,7 +115,7 @@ export class AppInterfaceClient extends Base {
 	    "installed_app_id": app_id,
 	});
 
-	this.log.trace( app_info );
+	this.log.trace("Raw app info for ID '%s':", app_id, app_info );
 	return utils.reformat_app_info( app_info );
     }
 
@@ -141,11 +134,11 @@ export class AgentContext extends Base {
     #client_pubkey			= null;
     #apps				= {};
 
-    constructor ( client, cell_agent ) {
+    constructor ( client, cell_agent, options ) {
 	if ( arguments[0]?.constructor?.name === "AgentContext" )
 	    return arguments[0];
 
-	super();
+	super( options );
 
 	this.#client			= client;
 	this.#cell_agent		= new AgentPubKey( cell_agent );
@@ -186,7 +179,7 @@ export class AgentContext extends Base {
 	if ( this.#apps[ app_id ] !== undefined )
 	    throw new Error(`App ${app_id} is already set`);
 
-	const app_client		= new AppClient( this, roles );
+	const app_client		= new AppClient( this, roles, this.set_options );
 
 	this.#apps[ app_id ]		= app_client;
 
@@ -196,7 +189,7 @@ export class AgentContext extends Base {
     async call ( dna, zome, func, args = null, timeout ) {
 	await this.setup;
 
-	this.log.trace("AgentContext.call", ...arguments );
+	this.log.trace("AgentContext.call( %s, %s, %s, ... ) [timeout: %s]", dna, zome, func, timeout );
 	const client_agent		= this.client_agent;
 	const cell_agent		= this.cell_agent;
 
@@ -206,7 +199,7 @@ export class AgentContext extends Base {
 	    "zome_name":	zome,
 	    "fn_name":		func,
 	    "payload":		encode( args ),
-	    "nonce":		nonce(),
+	    "nonce":		utils.nonce(),
 	    "expires_at":	(Date.now() + (5 * 60 * 1000)) * 1000,
 	    "cap_secret":	null,
 	};
@@ -232,11 +225,11 @@ export class AppClient extends Base {
     #roles				= {};
     #cells				= {};
 
-    constructor ( agent_ctx, roles ) {
+    constructor ( agent_ctx, roles, options ) {
 	if ( arguments[0]?.constructor?.name === "AppClient" )
 	    return arguments[0];
 
-	super();
+	super( options );
 
 	this.#agent			= agent_ctx;
 
@@ -244,6 +237,9 @@ export class AppClient extends Base {
 	    this.#roles[ name ]	= new DnaHash( dna_hash );
 	    this.setCellZomelets( name );
 	}
+	this.log.info("AppClient (for agent '%s') roles:", () => [
+	    this.agent.cell_agent, json.debug(this.roles)
+	]);
     }
 
     get agent () {
@@ -258,6 +254,14 @@ export class AppClient extends Base {
 	return Object.assign( {}, this.#cells );
     }
 
+    createScopedCell ( role, cell_spec ) {
+	// Verify that there is a matching role name
+	if ( !(role in this.roles) )
+	    throw new Error(`Role '${role}' is not in client: ${Object.keys(this.roles)}`);
+
+	return new ScopedCellZomelets( this, role, cell_spec, this.set_options );
+    }
+
     setInterface ( config ) {
 	for ( let [role, cell_spec] of Object.entries( config ) ) {
 	    this.setCellZomelets( role, cell_spec );
@@ -265,7 +269,7 @@ export class AppClient extends Base {
     }
 
     setCellZomelets ( role, cell_spec ) {
-	this.#cells[ role ]		= new ScopedCellZomelets( this, role, cell_spec );
+	this.#cells[ role ]		= this.createScopedCell( role, cell_spec );
     }
 
     async call ( role, ...args ) {

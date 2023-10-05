@@ -1,3 +1,5 @@
+.PHONY:			FORCE
+
 #
 # Project
 #
@@ -49,6 +51,11 @@ MOCHA_OPTS		= -t 15000
 #
 # Testing
 #
+CONTENT_DNA			= tests/content_dna.dna
+TEST_DNAS			= $(CONTENT_DNA)
+
+tests/%.dna:			FORCE
+	cd tests; make $*.dna
 test:				test-unit	test-integration
 test-debug:			test-unit-debug	test-integration-debug
 
@@ -57,9 +64,9 @@ test-unit:		build
 test-unit-debug:	build
 	LOG_LEVEL=trace npx mocha $(MOCHA_OPTS) ./tests/unit
 
-test-integration:		build
+test-integration:		build $(CONTENT_DNA)
 	LOG_LEVEL=warn npx mocha $(MOCHA_OPTS) ./tests/integration
-test-integration-debug:		build
+test-integration-debug:		build $(CONTENT_DNA)
 	LOG_LEVEL=trace npx mocha $(MOCHA_OPTS) ./tests/integration
 
 

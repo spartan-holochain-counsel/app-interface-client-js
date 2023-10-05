@@ -12,9 +12,8 @@ import json				from '@whi/json';
 import { Connection }			from '@spartan-hc/holochain-websocket';
 import {
     HoloHash,
-    DnaHash,
-    AgentPubKey,
-    EntryHash,
+    DnaHash, AgentPubKey,
+    ActionHash, EntryHash,
 }					from '@spartan-hc/holo-hash';
 import HolochainBackdrop		from '@spartan-hc/holochain-backdrop';
 const { Holochain }			= HolochainBackdrop;
@@ -76,10 +75,10 @@ describe("App Client", function () {
 const content_spec			= new CellZomelets({
     "content_csr": {
 	async create_content ( name, content ) {
-	    return await this.call({
+	    return new ActionHash( await this.call({
 		name,
 		content,
-	    });
+	    }) );
 	}
     },
 }, {

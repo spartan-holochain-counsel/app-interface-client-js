@@ -29,15 +29,21 @@ export function replacer( key, value ) {
 
 export class Base {
     static defaults		= {
-	"logging": "warn",
+	"logging": "fatal",
     };
+    #set_options		= {};
     #options			= {};
     #logger			= null;
 
     constructor ( ...options ) {
+	Object.assign( this.#set_options, ...options );
 	Object.assign( this.#options, Base.defaults, this.constructor.defaults, ...options );
 
 	this.#logger		= new Logger( this.constructor.name, this.options.logging );
+    }
+
+    get set_options () {
+	return Object.assign({}, this.#set_options );
     }
 
     get options () {
