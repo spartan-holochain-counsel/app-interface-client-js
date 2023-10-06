@@ -215,9 +215,9 @@ export class CallContext extends Base {
 	this.#zome			= scoped_zome;
 	this.#func			= fn_name;
 	this.#start_time		= new Date();
-	this.#cells			= new PeerCellsProxy( {}, this.#cell.name );
-	this.#zomes			= new PeerZomesProxy( {}, this.#zome.name );
-	this.#functions			= new PeerFunctionsProxy( {}, this.#zome.name );
+	this.#cells			= new PeerCellsProxy( {}, this.zome.name );
+	this.#zomes			= new PeerZomesProxy( {}, this.zome.name );
+	this.#functions			= new PeerFunctionsProxy( {}, this.zome.name );
 	this.#position			= this.parent?.children.length || 0;
 
 	// Setup for calling peer cells
@@ -284,6 +284,14 @@ export class CallContext extends Base {
 
     get depth () {
 	return this.heritage.length;
+    }
+
+    get cell () {
+	return this.#cell;
+    }
+
+    get zome () {
+	return this.#zome;
     }
 
     get func () {

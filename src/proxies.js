@@ -106,7 +106,7 @@ export function PeerFunctionsProxy ( target = {}, calling_zome_name ) {
 	    const value			= Reflect.get( target, name, ...args );
 
 	    if ( value === undefined )
-		throw new Error(`Function '${name}' is not defined in Zomelet '${zome_name}'`);
+		throw new Error(`Function '${name}' is not defined in Zomelet '${calling_zome_name}'`);
 
 	    return value;
 	},
