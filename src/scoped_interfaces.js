@@ -1,6 +1,12 @@
 import { Logger }			from '@whi/weblogger';
 const log				= new Logger("scoped-interfaces", (import.meta.url === import.meta.main) && process.env.LOG_LEVEL );
 
+import json				from '@whi/json';
+import {
+    CellZomelets,
+    Zomelet,
+}					from '@spartan-hc/zomelets';
+
 import utils				from './utils.js';
 import { Base }				from './base_classes.js';
 import {
@@ -11,10 +17,6 @@ import {
     PeerZomesProxy,
     PeerFunctionsProxy,
 }					from './proxies.js';
-import {
-    CellZomelets,
-    Zomelet,
-}					from '@spartan-hc/zomelets';
 
 
 export class ScopedCellZomelets extends Base {
@@ -146,6 +148,8 @@ export class ScopedZomelet extends Base {
 		return result;
 	    } catch (err) {
 		ctx.log.error( log_msg, log_args_fn );
+		if ( err.message.includes("Failed to deserialize input for") )
+		    ctx.log.error("%s(%s)", ctx.name, json.debug(args) );
 		throw err;
 	    } finally {
 		self.log.debug("End call %s", ctx.repr );
