@@ -77,6 +77,7 @@ export class ScopedZomelet extends Base {
     #cells				= null;
     #zomes				= null;
     #functions				= null;
+    #latest_context			= null;
 
     constructor ( scoped_cell, name, zome_spec, options ) {
 	if ( arguments[0]?.constructor?.name === "ScopedZomelet" )
@@ -121,38 +122,33 @@ export class ScopedZomelet extends Base {
     #contextWrapper ( name, handler ) {
 	const self			= this;
 
-	return async function ( args, ...extra ) {
+	return async function ( args, options ) {
+	    const call_opts		= Object.assign( {}, self.options?.defaultCallOptions, options );
 	    // 'this' will either be the parent context or we create a new one
 	    const ctx			= this?.constructor?.name === "CallContext"
-		  ? this.childContext( self, name )
-		  : new CallContext( self, name );
+		  ? this.childContext( self, name, args, call_opts )
+		  : new CallContext( self, name, args, call_opts );
 	    self.log.debug("Begin call %s", ctx.repr );
 
-	    const log_msg		= "%s%ss to finish call #%s with %s subcalls; %s";
-	    const log_args_fn		= () => {
-		const indent	= ctx.heritage
-		      .map( parent => parent.position > 0 ? `│  ` : "   ")
-		      .join("");
-		return [
-		    ctx.depth ? `${indent}${ctx.position ? '├' : '┌'}─ ` : "",
-		    ctx.duration_seconds,
-		    ctx.position,
-		    ctx.subcall_count,
-		    ctx.repr,
-		];
-	    };
-
 	    try {
-		const result		= await handler.call( ctx, args, ...extra );
-		ctx.log.normal( log_msg, log_args_fn );
+		// 'options' is read-only but will override any options set by the handler
+		const result		= await handler.call( ctx, args, call_opts );
+		ctx.treeLog();
+
+		// Allows access to the CallContext after call finishes
+		self.#latest_context	= ctx;
+
 		return result;
 	    } catch (err) {
-		ctx.log.error( log_msg, log_args_fn );
+		ctx.treeLog( err );
+
 		if ( err.message.includes("Failed to deserialize input for") )
 		    ctx.log.error("%s(%s)", ctx.name, json.debug(args) );
+
 		throw err;
 	    } finally {
-		self.log.debug("End call %s", ctx.repr );
+		ctx.end();
+		self.log.debug("End call context %s", ctx.repr );
 	    }
 	};
     }
@@ -181,6 +177,10 @@ export class ScopedZomelet extends Base {
 	return Object.assign( {}, this.#functions );
     }
 
+    prevCall () {
+	return this.#latest_context;
+    }
+
     async call ( ...args ) {
 	this.log.trace("ScopedZomelet: %s", this.name );
 	const input			= await this.spec.processInput( args ) || args;
@@ -198,6 +198,7 @@ export class CallContext extends Base {
     #zome				= null;
     #func				= null;
     #args				= null;
+    #call_options			= {};
     #start_time				= null;
     #end_time				= null;
     #position				= null;
@@ -205,8 +206,9 @@ export class CallContext extends Base {
     #cells				= null;
     #zomes				= null;
     #functions				= null;
+    #tree				= [];
 
-    constructor ( scoped_zome, fn_name, parent_ctx ) {
+    constructor ( scoped_zome, fn_name, args = null, call_options, parent_ctx ) {
 	super( scoped_zome.set_options );
 
 	if ( parent_ctx ) {
@@ -218,6 +220,8 @@ export class CallContext extends Base {
 	this.#cell			= scoped_zome.cell;
 	this.#zome			= scoped_zome;
 	this.#func			= fn_name;
+	this.#args			= args;
+	Object.assign( this.#call_options, call_options );
 	this.#start_time		= new Date();
 	this.#cells			= new PeerCellsProxy( {}, this.zome.name );
 	this.#zomes			= new PeerZomesProxy( {}, this.zome.name );
@@ -255,6 +259,7 @@ export class CallContext extends Base {
 	}
     }
 
+    // Wraps a handler function to ensure 'this' CallContext is the parent of all subcalls
     #heritageWrapper ( name, handler ) {
 	const self			= this;
 
@@ -274,12 +279,6 @@ export class CallContext extends Base {
 
     get children () {
 	return this.#children.slice();
-    }
-
-    get subcall_count () {
-	return this.children
-	    .map( ctx => ctx.subcall_count )
-	    .reduce( (acc, n) => acc + n + 1, 0 );
     }
 
     get position () {
@@ -303,7 +302,11 @@ export class CallContext extends Base {
     }
 
     get args () {
-	return this.#args || null;
+	return this.#args;
+    }
+
+    get call_options () {
+	return Object.assign( {}, this.#call_options );
     }
 
     get args_repr () {
@@ -317,7 +320,7 @@ export class CallContext extends Base {
     }
 
     get repr () {
-	return `${this.name}(${this.args_repr || ' ? '})`;
+	return `${this.name}(${this.args_repr})`;
     }
 
     get start_time () {
@@ -332,10 +335,6 @@ export class CallContext extends Base {
 	return (this.end_time || new Date()) - this.start_time;
     }
 
-    get duration_seconds () {
-	return (this.duration / 1000).toFixed(3);
-    }
-
     get cells () {
 	return Object.assign( {}, this.#cells );
     }
@@ -348,8 +347,75 @@ export class CallContext extends Base {
 	return Object.assign( {}, this.#functions );
     }
 
-    childContext ( scoped_zome, fn_name ) {
-	const child_ctx			= new CallContext( scoped_zome, fn_name, this );
+    get tree () {
+	return this.#tree.slice();
+    }
+
+    durationSeconds () {
+	return (this.duration / 1000).toFixed(3);
+    }
+
+    subcallCount () {
+	return this.children
+	    .map( ctx => ctx.subcallCount() )
+	    .reduce( (acc, n) => acc + n + 1, 0 );
+    }
+
+    printTree ( color = true ) {
+	for ( let [ prefix, msg, err ] of this.tree ) {
+	    let text			= `${prefix}${msg}`;
+
+	    if ( err ) {
+		text			= `${text} (error: ${err.name})`;
+		if ( this.call_options?.colorTree === false || color === false )
+		    console.log( text );
+		else
+		    utils.print( text, "error" );
+	    }
+	    else {
+		if ( this.call_options?.colorTree === false || color === false )
+		    console.log( text );
+		else
+		    utils.print( text );
+	    }
+	}
+    }
+
+    treeLog ( err ) {
+	const msg			= `${this.durationSeconds()}s to finish call #${this.position} with ${this.subcallCount()} subcalls; ${this.repr}`;
+
+	this.addTreeLog( msg, err );
+
+	return msg;
+    }
+
+    addTreeLog ( msg, err = null, prefix = "" ) {
+	this.#tree.push([ prefix, msg , err ]);
+
+	// If this context has a parent, we need to pass the tree log upwards and add the prefix.
+	if ( this.parent ) {
+	    // If the current prefix is blank we need to add directional box characters, otherwise
+	    // we just add the pipe.
+	    let indent			= prefix === ""
+		? (this.position ? '├─ ' : '┌─ ')
+		: (this.position > 0 ? `│  ` : "   ");
+
+	    this.parent.addTreeLog( msg, err, `${indent}${prefix}` );
+	}
+	else {
+	    // Top context should be the only one who logs.  Otherwise, there would be many
+	    // duplicate logs
+	    if ( err )
+		this.log.error("%s%s", prefix, msg );
+	    else
+		this.log.normal("%s%s", prefix, msg );
+	}
+    }
+
+    childContext ( scoped_zome, fn_name, args, options ) {
+	// Inherit current options but allow override
+	const inherited_options		= Object.assign( this.call_options, options );
+	const child_ctx			= new CallContext( scoped_zome, fn_name, args, inherited_options, this );
 	try {
 	    return child_ctx;
 	} finally {
@@ -357,22 +423,28 @@ export class CallContext extends Base {
 	}
     }
 
-    async call ( args, ...extra ) {
+    // Note: virtual functions are functions that don't run this
+    async call ( args = null, options ) {
 	// Should only be able to call 1 time.
 	if ( this.end_time )
 	    throw new Error(`Call context has already been executed`);
 
 	this.#args			= args;
 
-	try {
-	    return await this.#zome.call( this.func, args, ...extra );
-	} finally {
-	    this.end();
-	}
+	if ( typeof options === "number" )
+	    options			= { "timeout": options };
+
+	return await this.#zome.call( this.func, args, options );
     }
 
     end () {
+	if ( this.end_time )
+	    throw new Error(`Call context has already been ended`);
+
 	this.#end_time			= new Date();
+
+	if ( !this.parent && this.call_options?.printFinalTree )
+	    this.printTree();
     }
 }
 utils.set_tostringtag( CallContext, "CallContext" );

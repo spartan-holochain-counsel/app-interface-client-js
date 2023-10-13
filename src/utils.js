@@ -132,6 +132,17 @@ function nonce () {
 }
 
 
+const PRINT_COLORS			= {
+    "default": [ "font-weight: 800", "\x1b[37m" ],
+    "error": [ "color: #E20D03", "\x1b[31m" ],
+};
+export function print( msg, lvl = "default" ) {
+    typeof window !== "undefined"
+	? console.log("%c%s%c", PRINT_COLORS[lvl][0], msg, "color: initial" )
+	: console.log("%s%s\x1b[0m", PRINT_COLORS[lvl][1], msg );
+}
+
+
 export default {
     heritage,
     set_tostringtag,
@@ -140,4 +151,5 @@ export default {
     is_type,
     assert,
     nonce,
+    print,
 };

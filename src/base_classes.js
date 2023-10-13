@@ -31,8 +31,8 @@ export class Base {
     static defaults		= {
 	"logging": "fatal",
     };
-    #set_options		= {};
-    #options			= {};
+    #set_options		= {}; // Options set by user
+    #options			= {}; // Defaults + options set by user
     #logger			= null;
 
     constructor ( ...options ) {
@@ -40,6 +40,11 @@ export class Base {
 	Object.assign( this.#options, Base.defaults, this.constructor.defaults, ...options );
 
 	this.#logger		= new Logger( this.constructor.name, this.options.logging );
+    }
+
+    updateOptions ( options ) {
+	Object.assign( this.#set_options, options );
+	Object.assign( this.#options, options );
     }
 
     get set_options () {

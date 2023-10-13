@@ -17,7 +17,6 @@ import {
 }					from '@spartan-hc/holo-hash';
 import HolochainBackdrop		from '@spartan-hc/holochain-backdrop';
 const { Holochain }			= HolochainBackdrop;
-// import { MereMemoryZomelet }		from '@spartan-hc/mere-memory-sdk';
 
 import {
     expect_reject,
@@ -26,13 +25,11 @@ import {
 import {
     AppInterfaceClient,
     CellZomelets,
-    // Transformer,
 }					from '../../src/node.js';
 
 
 const __dirname				= path.dirname( new URL(import.meta.url).pathname );
 const DNA_PATH				= path.join( __dirname, "../content_dna.dna" );
-// const HAPP_PATH				= path.join( __dirname, "../packs/storage.happ" );
 const APP_PORT				= 23_567;
 let agents				= {};
 
@@ -46,14 +43,12 @@ describe("App Client", function () {
 	this.timeout( 60_000 );
 
 	const actors			= await holochain.backdrop({
-	    "test": { // HAPP_PATH,
+	    "test": {
 		"content": DNA_PATH,
 	    },
 	}, {
 	    "app_port": APP_PORT,
 	});
-
-	// console.log( actors );
     });
 
     linearSuite( "Basic", basic_tests );
@@ -63,26 +58,37 @@ describe("App Client", function () {
     });
 });
 
-// const DNA_NAME				= "storage";
-// const MAIN_ZOME				= "mere_memory_api";
 
-
-// const mere_memory_spec			= new CellZomelets({
-//     [MAIN_ZOME]: MereMemoryZomelet,
-// }, {
-//     "logging": "debug",
-// });
 const content_spec			= new CellZomelets({
     "content_csr": {
-	async create_content ( name, content ) {
-	    return new ActionHash( await this.call({
-		name,
-		content,
-	    }) );
-	}
+	async create_content ( input ) {
+	    return new ActionHash( await this.call( input ) );
+	},
+	async hash_content ( input ) {
+	    return new EntryHash( await this.call( input ) );
+	},
+	async get_content ({ id }) {
+	    return await this.call({
+		"id": new ActionHash( id ),
+	    });
+	},
+	async get_content_by_hash ( input ) {
+	    return await this.call( new EntryHash( input ) );
+	},
+
+	// Virtual function
+	async content ( input, options ) {
+	    const entry_hash		= await this.functions.hash_content( input );
+	    try {
+		return await this.functions.get_content_by_hash( entry_hash );
+	    } catch (err) {
+		this.log.error( String(err) );
+		return await this.functions.create_content( input );
+	    }
+	},
     },
 }, {
-    "logging": "debug",
+    // "logging": "debug",
 });
 
 const k					= obj => Object.keys( obj );
@@ -92,6 +98,7 @@ function basic_tests () {
     let client;
     let agent_ctx;
     let app_client;
+    let zome, csr;
 
     it("should create app interface client", async function () {
 	client				= new AppInterfaceClient( APP_PORT, {
@@ -109,18 +116,27 @@ function basic_tests () {
 	expect( k(app_client.cells)	).to.have.length( 1 );
     });
 
+    it("should setup a cell interface", async function () {
+	app_client.setCellZomelets( "content", content_spec );
+
+	zome				= app_client.cells.content.zomes.content_csr;
+	csr				= zome.functions;
+    });
+
     it("should use a cell interface", async function () {
 	this.timeout( 30_000 );
 
-	app_client.setCellZomelets( "content", content_spec );
-
-	const {
-	    create_content,
-	}				= app_client.cells.content.zomes.content_csr.functions;
-
-	const addr			= await create_content( "greeting", "Hello world" );
-
+	const content			= {
+	    "name": "greeting",
+	    "content": "Hello world",
+	};
+	const addr			= await csr.content( content );
+	// zome.prevCall().printTree( true ); // color
 	expect( addr			).to.be.a("ActionHash");
+
+	const result			= await csr.content( content );
+	// zome.prevCall().printTree( false ); // no color
+	expect( result			).to.deep.equal( content );
     });
 
     after(async function () {

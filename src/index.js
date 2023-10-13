@@ -101,13 +101,13 @@ export class AppInterfaceClient extends Base {
 	return app_client;
     }
 
-    async request ( method, args, timeout ) {
+    async request ( method, args, options ) {
 	await this.conn.open();
 
-	this.log.trace("RAW REQUEST '%s' (timeout: %s):", () => [
-	    method, timeout || null, json.debug(args)
+	this.log.trace("Raw request '%s' (timeout: %s):", () => [
+	    method, options?.timeout || null, json.debug(args)
 	]);
-	return await this.conn.request( method, args, timeout || this.options?.timeout );
+	return await this.conn.request( method, args, options?.timeout || this.options?.timeout );
     }
 
     async appInfo ( app_id ) {
@@ -119,8 +119,8 @@ export class AppInterfaceClient extends Base {
 	return utils.reformat_app_info( app_info );
     }
 
-    async call ( call_spec, timeout ) {
-	return decode( await this.request( "call_zome", call_spec, timeout ) );
+    async call ( call_spec, options ) {
+	return decode( await this.request( "call_zome", call_spec, options ) );
     }
 }
 utils.set_tostringtag( AppInterfaceClient, "AppInterfaceClient" );
@@ -186,13 +186,16 @@ export class AgentContext extends Base {
 	return app_client;
     }
 
-    async call ( dna, zome, func, args = null, timeout ) {
+    async call ( dna, zome, func, args = null, options ) {
 	await this.setup;
 
-	this.log.trace("AgentContext.call( %s, %s, %s, ... ) [timeout: %s]", dna, zome, func, timeout );
+	this.log.trace("AgentContext.call( %s, %s, %s, ... ) [timeout: %s]", dna, zome, func, options?.timeout );
 	const client_agent		= this.client_agent;
 	const cell_agent		= this.cell_agent;
 
+	this.log.trace("Raw payload", () => [
+	    json.debug(args)
+	]);
 	const zome_call_spec		= {
 	    "provenance":	client_agent,
 	    "cell_id":		[ dna, cell_agent ],
@@ -213,7 +216,7 @@ export class AgentContext extends Base {
 	if ( !zome_call_spec.signature )
 	    console.log("WARNING: Signed zome call is missing the signature property");
 
-	return await this.client.call( zome_call_spec, timeout );
+	return await this.client.call( zome_call_spec, options );
     }
 
 }

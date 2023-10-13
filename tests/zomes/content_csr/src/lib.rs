@@ -32,6 +32,15 @@ fn whoami(_: ()) -> ExternResult<AgentInfo> {
 
 
 #[hdk_extern]
+pub fn create_content(content: ContentEntry) -> ExternResult<ActionHash> {
+    debug!("Creating new content entry: {:#?}", content );
+    let action_hash = create_entry( content.to_input() )?;
+
+    Ok( action_hash )
+}
+
+
+#[hdk_extern]
 pub fn get_content(input: GetEntityInput) -> ExternResult<ContentEntry> {
     debug!("Get latest content entry: {:#?}", input );
     let record = must_get( &input.id )?;
@@ -41,11 +50,20 @@ pub fn get_content(input: GetEntityInput) -> ExternResult<ContentEntry> {
 
 
 #[hdk_extern]
-pub fn create_content(content: ContentEntry) -> ExternResult<ActionHash> {
-    debug!("Creating new content entry: {:#?}", content );
-    let action_hash = create_entry( content.to_input() )?;
+pub fn get_content_by_hash(input: EntryHash) -> ExternResult<ContentEntry> {
+    debug!("Get latest content entry: {:#?}", input );
+    let record = must_get( &input )?;
 
-    Ok( action_hash )
+    Ok( ContentEntry::try_from_record( &record )? )
+}
+
+
+#[hdk_extern]
+pub fn hash_content(content: ContentEntry) -> ExternResult<EntryHash> {
+    debug!("Creating new content entry: {:#?}", content );
+    let entry_hash = hash_entry( content )?;
+
+    Ok( entry_hash )
 }
 
 
