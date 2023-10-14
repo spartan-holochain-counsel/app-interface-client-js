@@ -11,7 +11,10 @@ import {
     AgentPubKey,
 }					from '@spartan-hc/holo-hash';
 
-import { expect_reject }		from '../utils.js';
+import {
+    expect_reject,
+    linearSuite,
+}					from '../utils.js';
 import {
     AppInterfaceClient,
     CellZomelets,
@@ -77,8 +80,32 @@ function basic_tests () {
 	    },
 	});
 
+	app_client.setCellZomelets( "role_name", cell_spec );
+
 	expect( cell_spec.zomes		).to.have.keys( "zome_01", "zome_02" );
 	expect( cell_spec.zomes.zome_01	).to.equal( zome_spec );
+    });
+
+    linearSuite("Errors", async function () {
+
+	it("should fail because cell doesn't exist", async function () {
+	    await expect_reject(async () => {
+		app_client.cells.wrong_cell;
+	    }, "Cell 'wrong_cell' does not exist in AppClient");
+	});
+
+	it("should fail because zome doesn't exist", async function () {
+	    await expect_reject(async () => {
+		app_client.cells.role_name.zomes.wrong_zome;
+	    }, "Zome 'wrong_zome' does not exist in ScopedCellZomelets");
+	});
+
+	it("should fail because function is not defined", async function () {
+	    await expect_reject(async () => {
+		app_client.cells.role_name.zomes.zome_01.functions.wrong_func;
+	    }, "'wrong_func' does not have a defined function in ScopedZomelet");
+	});
+
     });
 
 }

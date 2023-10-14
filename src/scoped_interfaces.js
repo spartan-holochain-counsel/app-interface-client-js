@@ -10,6 +10,7 @@ import {
 import utils				from './utils.js';
 import { Base }				from './base_classes.js';
 import {
+    ORMProxy,
     CellsProxy,
     ZomesProxy,
     FunctionsProxy,
@@ -24,6 +25,7 @@ export class ScopedCellZomelets extends Base {
     #role				= null;
     #spec				= null;
     #zomes				= null;
+    #orm				= null;
 
     constructor ( client, role, cell_spec, options ) {
 	if ( arguments[0]?.constructor?.name === "ScopedCellZomelets" )
@@ -37,10 +39,15 @@ export class ScopedCellZomelets extends Base {
 	this.#client			= client;
 	this.#role			= role;
 	this.#spec			= zomelets;
-	this.#zomes			= new ZomesProxy( {}, this.role );
+	this.#zomes			= new ZomesProxy( {}, `ScopedCellZomelets '${this.role}'` );
+	this.#orm			= new ORMProxy( {}, ( name ) => {
+	    const tmp_scoped_zome	= this.createScopedZome( name );
+
+	    return tmp_scoped_zome.orm;
+	});
 
 	Object.entries( this.spec.zomes ).forEach( ([name, zome_spec]) => {
-	    this.#zomes[ name ]		= new ScopedZomelet( this, name, zome_spec, this.set_options );
+	    this.#zomes[ name ]		= this.createScopedZome( name, zome_spec );
 	});
     }
 
@@ -57,7 +64,15 @@ export class ScopedCellZomelets extends Base {
     }
 
     get zomes () {
-	return Object.assign( {}, this.#zomes );
+	return this.#zomes;
+    }
+
+    get orm () {
+	return this.#orm;
+    }
+
+    createScopedZome ( name, zome_spec ) {
+	return new ScopedZomelet( this, name, zome_spec, this.set_options );
     }
 
     async call ( ...args ) {
@@ -77,9 +92,10 @@ export class ScopedZomelet extends Base {
     #cells				= null;
     #zomes				= null;
     #functions				= null;
+    #orm				= null;
     #latest_context			= null;
 
-    constructor ( scoped_cell, name, zome_spec, options ) {
+    constructor ( scoped_cell, name, zome_spec = {}, options ) {
 	if ( arguments[0]?.constructor?.name === "ScopedZomelet" )
 	    return arguments[0];
 
@@ -94,9 +110,17 @@ export class ScopedZomelet extends Base {
 	this.#cell			= scoped_cell;
 	this.#name			= name;
 	this.#spec			= zomelet;
-	this.#cells			= new CellsProxy( {}, this.name );
-	this.#zomes			= new ZomesProxy( {}, this.name );
-	this.#functions			= new FunctionsProxy( {}, this.name );
+	this.#cells			= new CellsProxy( {}, `ScopedZomelet '${this.name}'` );
+	this.#zomes			= new ZomesProxy( {}, `ScopedZomelet '${this.name}'` );
+	this.#functions			= new FunctionsProxy( {}, `ScopedZomelet '${this.name}'` );
+	this.#orm			= new ORMProxy( {}, ( name ) => {
+	    function noop_handler ( args ) {
+		return this.call( args );
+	    }
+	    const tmp_scoped_func	= this.#contextWrapper( name, noop_handler );
+
+	    return tmp_scoped_func;
+	});
 
 	// Peer cells from the perspective of this zomelet
 	this.log.trace("Adding peer cells to Zomelet (%s):", this.name, this.spec.cells );
@@ -166,15 +190,19 @@ export class ScopedZomelet extends Base {
     }
 
     get cells () {
-	return Object.assign( {}, this.#cells );
+	return this.#cells;
     }
 
     get zomes () {
-	return Object.assign( {}, this.#zomes );
+	return this.#zomes;
     }
 
     get functions () {
-	return Object.assign( {}, this.#functions );
+	return this.#functions;
+    }
+
+    get orm () {
+	return this.#orm;
     }
 
     prevCall () {

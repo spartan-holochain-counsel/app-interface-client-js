@@ -35,7 +35,7 @@ function zomes_proxy_tests () {
 function zomes_errors_tests () {
 
     it("should fail to set invalid values", async function () {
-	const zomes			= new ZomesProxy( {}, "role_name" );
+	const zomes			= new ZomesProxy();
 
 	await expect_reject(async () => {
 	    zomes.bad_zome		= true;
@@ -43,11 +43,11 @@ function zomes_errors_tests () {
     });
 
     it("should fail to get unknown zome", async function () {
-	const zomes			= new ZomesProxy( {}, "role_name" );
+	const zomes			= new ZomesProxy( {}, "ScopedZomelet 'role_name'" );
 
 	await expect_reject(async () => {
 	    zomes.unknown_zome
-	}, "does not exist in Zomelet" );
+	}, "does not exist in ScopedZomelet" );
     });
 
 }
@@ -55,7 +55,7 @@ function zomes_errors_tests () {
 function funcs_proxy_tests () {
 
     it("should set a function", async function () {
-	const funcs			= new FunctionsProxy( {}, "zome_name" );
+	const funcs			= new FunctionsProxy();
 
 	funcs.name			= async function () { return null };
     });
@@ -66,7 +66,7 @@ function funcs_proxy_tests () {
 function funcs_errors_tests () {
 
     it("should fail to set invalid values", async function () {
-	const funcs			= new FunctionsProxy( {}, "zome_name" );
+	const funcs			= new FunctionsProxy();
 
 	await expect_reject(async () => {
 	    funcs.bad_function		= true;
@@ -74,11 +74,11 @@ function funcs_errors_tests () {
     });
 
     it("should fail to get unknown function", async function () {
-	const funcs			= new FunctionsProxy( {}, "zome_name" );
+	const funcs			= new FunctionsProxy( {}, "ScopedZomelet 'zome_name'" );
 
 	await expect_reject(async () => {
 	    funcs.unknown_function
-	}, "does not have a defined function in Zomelet" );
+	}, "does not have a defined function in ScopedZomelet" );
     });
 
 }

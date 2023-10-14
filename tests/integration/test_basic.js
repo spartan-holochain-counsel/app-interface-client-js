@@ -51,7 +51,7 @@ describe("App Client", function () {
 	});
     });
 
-    linearSuite( "Basic", basic_tests );
+    linearSuite("Basic", basic_tests );
 
     after(async () => {
 	await holochain.destroy();
@@ -102,7 +102,7 @@ function basic_tests () {
 
     it("should create app interface client", async function () {
 	client				= new AppInterfaceClient( APP_PORT, {
-	    // "logging": "warn",
+	    "logging": process.env.LOG_LEVEL || "normal",
 	});
 
 	expect( k(client.agents)	).to.have.length( 0 );
@@ -114,6 +114,25 @@ function basic_tests () {
 	expect( k(client.agents)	).to.have.length( 1 );
 	expect( k(app_client.roles)	).to.have.length( 1 );
 	expect( k(app_client.cells)	).to.have.length( 1 );
+    });
+
+    it("should use ORM interface", async function () {
+	this.timeout( 30_000 );
+
+	const content			= {
+	    "name": "intro",
+	    "content": "Welcome!",
+	};
+	const addr			= await app_client.orm.content.content_csr.create_content( content );
+
+	expect( addr			).to.be.a("Uint8Array");
+
+	const cell			= app_client.cells.content;
+
+	expect( k(cell.zomes)		).to.have.length( 0 );
+
+	expect( k(app_client.orm.content)		).to.have.length( 1 );
+	expect( k(app_client.orm.content.content_csr)	).to.have.length( 1 );
     });
 
     it("should setup a cell interface", async function () {

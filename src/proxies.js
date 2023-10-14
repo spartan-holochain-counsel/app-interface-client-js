@@ -1,6 +1,20 @@
 
+export function ORMProxy ( target = {}, create_fn ) {
+    return new Proxy( target, {
+	set ( target, cell_name, cell_spec, ...args ) {
+	    throw new Error(`ORM values cannot be set`);
+	},
+	get ( target, key, ...args ) {
+	    if ( target[ key ] === undefined )
+		Reflect.set( target, key, create_fn( key ), ...args );
 
-export function CellsProxy ( target = {}, zomelet_name ) {
+	    return Reflect.get( target, key, ...args );
+	},
+    });
+}
+
+
+export function CellsProxy ( target = {}, context ) {
     return new Proxy( target, {
 	set ( target, cell_name, cell_spec, ...args ) {
 
@@ -13,7 +27,7 @@ export function CellsProxy ( target = {}, zomelet_name ) {
 	    const value			= Reflect.get( target, cell_name, ...args );
 
 	    if ( value === undefined )
-		throw new Error(`Cell '${cell_name}' does not exist in Zomelet '${zomelet_name}'`);
+		throw new Error(`Cell '${cell_name}' does not exist in ${context}`);
 
 	    return value;
 	},
@@ -21,7 +35,7 @@ export function CellsProxy ( target = {}, zomelet_name ) {
 }
 
 
-export function ZomesProxy ( target = {}, zomelet_name ) {
+export function ZomesProxy ( target = {}, context ) {
     return new Proxy( target, {
 	set ( target, zome_name, zome_spec, ...args ) {
 
@@ -34,7 +48,7 @@ export function ZomesProxy ( target = {}, zomelet_name ) {
 	    const value			= Reflect.get( target, zome_name, ...args );
 
 	    if ( value === undefined )
-		throw new Error(`Zomelet '${zome_name}' does not exist in Zomelet '${zomelet_name}'`);
+		throw new Error(`Zome '${zome_name}' does not exist in ${context}`);
 
 	    return value;
 	},
@@ -42,7 +56,7 @@ export function ZomesProxy ( target = {}, zomelet_name ) {
 }
 
 
-export function FunctionsProxy ( target = {}, zomelet_name ) {
+export function FunctionsProxy ( target = {}, context ) {
     return new Proxy( target, {
 	set ( target, function_name, handler, ...args ) {
 
@@ -55,7 +69,7 @@ export function FunctionsProxy ( target = {}, zomelet_name ) {
 	    const value			= Reflect.get( target, function_name, ...args );
 
 	    if ( value === undefined )
-		throw new Error(`'${function_name}' does not have a defined function in Zomelet '${zomelet_name}'`);
+		throw new Error(`'${function_name}' does not have a defined function in ${context}`);
 
 	    return value;
 	},
@@ -115,6 +129,7 @@ export function PeerFunctionsProxy ( target = {}, calling_zome_name ) {
 
 
 export default {
+    ORMProxy,
     CellsProxy,
     ZomesProxy,
     FunctionsProxy,

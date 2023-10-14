@@ -24,6 +24,10 @@ import json				from '@whi/json';
 
 import utils				from './utils.js';
 import { Base }				from './base_classes.js';
+import {
+    ORMProxy,
+    CellsProxy,
+}					from './proxies.js';
 import { HoloHashMap }			from './holo_hash_map.js';
 import {
     ScopedCellZomelets,
@@ -64,6 +68,11 @@ export class AppInterfaceClient extends Base {
 	await this.conn.open();
 
 	return await this.conn.close( timeout );
+    }
+
+    get name () {
+	console.log("Connection URI:", this.conn._uri );
+	return `${this.conn._uri} (${this.agents.size} agents)`;
     }
 
     get agents () {
@@ -146,6 +155,10 @@ export class AgentContext extends Base {
 	this.#setup			= this.setCapabilityAgent();
     }
 
+    get name () {
+	return `${this.cell_agent} via ${this.client.name}`;
+    }
+
     get setup () {
 	return this.#setup;
     }
@@ -226,7 +239,8 @@ utils.set_tostringtag( AgentContext, "AgentContext" );
 export class AppClient extends Base {
     #agent				= null;
     #roles				= {};
-    #cells				= {};
+    #cells				= null;
+    #orm				= null;
 
     constructor ( agent_ctx, roles, options ) {
 	if ( arguments[0]?.constructor?.name === "AppClient" )
@@ -235,6 +249,12 @@ export class AppClient extends Base {
 	super( options );
 
 	this.#agent			= agent_ctx;
+	this.#cells			= new CellsProxy( {}, `AppClient '${this.name}'` );
+	this.#orm			= new ORMProxy( {}, ( role ) => {
+	    const tmp_scoped_cell	= this.createScopedCell( role );
+
+	    return tmp_scoped_cell.orm;
+	});
 
 	for ( let [name, dna_hash] of Object.entries( roles ) ) {
 	    this.#roles[ name ]	= new DnaHash( dna_hash );
@@ -243,6 +263,10 @@ export class AppClient extends Base {
 	this.log.info("AppClient (for agent '%s') roles:", () => [
 	    this.agent.cell_agent, json.debug(this.roles)
 	]);
+    }
+
+    get name () {
+	return `${this.agent.cell_agent} (port: ?)`;
     }
 
     get agent () {
@@ -254,7 +278,11 @@ export class AppClient extends Base {
     }
 
     get cells () {
-	return Object.assign( {}, this.#cells );
+	return this.#cells;
+    }
+
+    get orm () {
+	return this.#orm;
     }
 
     createScopedCell ( role, cell_spec ) {
