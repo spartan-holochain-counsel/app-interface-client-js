@@ -68,7 +68,6 @@ export async function reformat_app_info ( app_info ) {
 
     // app_info.cell_info		- Map of role name to cell list
     // app_info.cell_info[ role name ]	- 1 Provisioned cell, followed by cloned or stem cells
-
     app_info.roles			= {};
 
     for ( let [role_name, cells] of Object.entries( app_info.cell_info ) ) {

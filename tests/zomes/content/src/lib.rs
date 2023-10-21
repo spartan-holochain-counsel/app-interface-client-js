@@ -9,9 +9,9 @@ use hdi_extensions::{
     ScopedTypeConnector,
     scoped_type_connector,
 };
-pub use hdi_extensions::{
+use hdi_extensions::{
     // Macros
-    valid, invalid,
+    valid,
 };
 
 

@@ -9,5 +9,5 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 serde = "1"
-rmpv = { version = "=1.0.0", features = ["with-serde"] }
-whi_hdk_extensions = "=0.2.1"
+rmpv = { version = "1.0.0", features = ["with-serde"] }
+whi_hdk_extensions = "0.2.1"

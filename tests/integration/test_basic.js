@@ -59,6 +59,34 @@ describe("App Client", function () {
 });
 
 
+const content_csr_spec			= {
+    async create_content ( input ) {
+	return new ActionHash( await this.call( input ) );
+    },
+    async hash_content ( input ) {
+	return new EntryHash( await this.call( input ) );
+    },
+    async get_content ({ id }) {
+	return await this.call({
+	    "id": new ActionHash( id ),
+	});
+    },
+    async get_content_by_hash ( input ) {
+	return await this.call( new EntryHash( input ) );
+    },
+
+    // Virtual function
+    async content ( input, options ) {
+	const entry_hash		= await this.functions.hash_content( input );
+	try {
+	    return await this.functions.get_content_by_hash( entry_hash );
+	} catch (err) {
+	    this.log.error( String(err) );
+	    return await this.functions.create_content( input );
+	}
+    },
+};
+
 const content_spec			= new CellZomelets({
     "content_csr": {
 	async create_content ( input ) {
@@ -98,7 +126,8 @@ function basic_tests () {
     let client;
     let agent_ctx;
     let app_client;
-    let zome, csr;
+    let content, content_csr;
+    let content_zome;
 
     it("should create app interface client", async function () {
 	client				= new AppInterfaceClient( APP_PORT, {
@@ -113,7 +142,6 @@ function basic_tests () {
 
 	expect( k(client.agents)	).to.have.length( 1 );
 	expect( k(app_client.roles)	).to.have.length( 1 );
-	expect( k(app_client.cells)	).to.have.length( 1 );
     });
 
     it("should use ORM interface", async function () {
@@ -127,19 +155,16 @@ function basic_tests () {
 
 	expect( addr			).to.be.a("Uint8Array");
 
-	const cell			= app_client.cells.content;
-
-	expect( k(cell.zomes)		).to.have.length( 0 );
-
 	expect( k(app_client.orm.content)		).to.have.length( 1 );
 	expect( k(app_client.orm.content.content_csr)	).to.have.length( 1 );
     });
 
     it("should setup a cell interface", async function () {
-	app_client.setCellZomelets( "content", content_spec );
-
-	zome				= app_client.cells.content.zomes.content_csr;
-	csr				= zome.functions;
+	content				= app_client.createCellInterface( "content", content_spec );
+	({
+	    content_csr,
+	}				= content.zomes);
+	content_zome			= content_csr.functions;
     });
 
     it("should use a cell interface", async function () {
@@ -149,12 +174,12 @@ function basic_tests () {
 	    "name": "greeting",
 	    "content": "Hello world",
 	};
-	const addr			= await csr.content( content );
-	// zome.prevCall().printTree( true ); // color
+	const addr			= await content_zome.content( content );
+	// content_csr.prevCall().printTree( true ); // color
 	expect( addr			).to.be.a("ActionHash");
 
-	const result			= await csr.content( content );
-	// zome.prevCall().printTree( false ); // no color
+	const result			= await content_zome.content( content );
+	// content_csr.prevCall().printTree( false ); // no color
 	expect( result			).to.deep.equal( content );
     });
 

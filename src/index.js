@@ -124,6 +124,9 @@ export class AppInterfaceClient extends Base {
 	    "installed_app_id": app_id,
 	});
 
+	if ( app_info === null )
+	    throw new Error(`App ID '${app_id}' is not running`);
+
 	this.log.trace("Raw app info for ID '%s':", app_id, app_info );
 	return utils.reformat_app_info( app_info );
     }
@@ -239,7 +242,6 @@ utils.set_tostringtag( AgentContext, "AgentContext" );
 export class AppClient extends Base {
     #agent				= null;
     #roles				= {};
-    #cells				= null;
     #orm				= null;
 
     constructor ( agent_ctx, roles, options ) {
@@ -249,16 +251,14 @@ export class AppClient extends Base {
 	super( options );
 
 	this.#agent			= agent_ctx;
-	this.#cells			= new CellsProxy( {}, `AppClient '${this.name}'` );
 	this.#orm			= new ORMProxy( {}, ( role ) => {
-	    const tmp_scoped_cell	= this.createScopedCell( role );
+	    const tmp_scoped_cell	= this.createCellInterface( role );
 
 	    return tmp_scoped_cell.orm;
 	});
 
 	for ( let [name, dna_hash] of Object.entries( roles ) ) {
 	    this.#roles[ name ]	= new DnaHash( dna_hash );
-	    this.setCellZomelets( name );
 	}
 	this.log.info("AppClient (for agent '%s') roles:", () => [
 	    this.agent.cell_agent, json.debug(this.roles)
@@ -273,19 +273,33 @@ export class AppClient extends Base {
 	return this.#agent;
     }
 
+    get agent_id () {
+	return this.agent.cell_agent;
+    }
+
     get roles () {
 	return Object.assign( {}, this.#roles );
     }
 
-    get cells () {
-	return this.#cells;
+    get roleNames () {
+	return Object.keys( this.#roles );
     }
 
     get orm () {
 	return this.#orm;
     }
 
-    createScopedCell ( role, cell_spec ) {
+    createInterface ( config ) {
+	const cells			= new CellsProxy( {}, `AppClient '${this.name}'` );
+
+	for ( let [role, cell_spec] of Object.entries( config ) ) {
+	    cells[ role ]		= this.createCellInterface( role, cell_spec );
+	}
+
+	return cells;
+    }
+
+    createCellInterface ( role, cell_spec ) {
 	// Verify that there is a matching role name
 	if ( !(role in this.roles) )
 	    throw new Error(`Role '${role}' is not in client: ${Object.keys(this.roles)}`);
@@ -293,18 +307,18 @@ export class AppClient extends Base {
 	return new ScopedCellZomelets( this, role, cell_spec, this.set_options );
     }
 
-    setInterface ( config ) {
-	for ( let [role, cell_spec] of Object.entries( config ) ) {
-	    this.setCellZomelets( role, cell_spec );
-	}
-    }
-
-    setCellZomelets ( role, cell_spec ) {
-	this.#cells[ role ]		= this.createScopedCell( role, cell_spec );
+    createZomeInterface ( role, zome_name, zome_spec ) {
+	return this.createCellInterface( role, {
+	    [zome_name]: zome_spec,
+	}).zomes[ zome_name ];
     }
 
     async call ( role, ...args ) {
 	const dna_hash			= this.roles[ role ];
+
+	if ( !dna_hash )
+	    throw new Error(`Role '${role}' is not in client: ${Object.keys(this.roles)}; available roles are ${this.roleNames.join(', ')}`);
+
 	return await this.agent.call( dna_hash, ...args );
     }
 

@@ -41,13 +41,13 @@ export class ScopedCellZomelets extends Base {
 	this.#spec			= zomelets;
 	this.#zomes			= new ZomesProxy( {}, `ScopedCellZomelets '${this.role}'` );
 	this.#orm			= new ORMProxy( {}, ( name ) => {
-	    const tmp_scoped_zome	= this.createScopedZome( name );
+	    const tmp_scoped_zome	= this.createZomeInterface( name );
 
 	    return tmp_scoped_zome.orm;
 	});
 
 	Object.entries( this.spec.zomes ).forEach( ([name, zome_spec]) => {
-	    this.#zomes[ name ]		= this.createScopedZome( name, zome_spec );
+	    this.#zomes[ name ]		= this.createZomeInterface( name, zome_spec );
 	});
     }
 
@@ -71,7 +71,7 @@ export class ScopedCellZomelets extends Base {
 	return this.#orm;
     }
 
-    createScopedZome ( name, zome_spec ) {
+    createZomeInterface ( name, zome_spec ) {
 	return new ScopedZomelet( this, name, zome_spec, this.set_options );
     }
 
@@ -127,7 +127,7 @@ export class ScopedZomelet extends Base {
 	for ( let [role_name, cell_spec] of Object.entries( this.spec.cells ) ) {
 	    // Create a scoped cell for the role
 	    this.log.trace("Adding peer cell '%s' to Zomelet (%s):", role_name, this.name, cell_spec );
-	    this.#cells[ role_name ]	= this.cell.client.createScopedCell( role_name, cell_spec );
+	    this.#cells[ role_name ]	= this.cell.client.createCellInterface( role_name, cell_spec );
 	}
 
 	// Peer zomes from the perspective of this zomelet

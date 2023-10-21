@@ -60,12 +60,12 @@ test:				test-unit	test-integration
 test-debug:			test-unit-debug	test-integration-debug
 
 test-unit:		build
-	LOG_LEVEL=warn npx mocha $(MOCHA_OPTS) ./tests/unit
+	LOG_LEVEL=fatal npx mocha $(MOCHA_OPTS) ./tests/unit
 test-unit-debug:	build
 	LOG_LEVEL=trace npx mocha $(MOCHA_OPTS) ./tests/unit
 
 test-integration:		build $(CONTENT_DNA)
-	LOG_LEVEL=warn npx mocha $(MOCHA_OPTS) ./tests/integration
+	LOG_LEVEL=fatal npx mocha $(MOCHA_OPTS) ./tests/integration
 test-integration-debug:		build $(CONTENT_DNA)
 	LOG_LEVEL=trace npx mocha $(MOCHA_OPTS) ./tests/integration
 

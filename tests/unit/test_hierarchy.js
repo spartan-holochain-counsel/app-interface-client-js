@@ -37,6 +37,7 @@ function basic_tests () {
     let app_client;
     let zome_spec;
     let cell_spec;
+    let cells;
 
     it("should create app interface client", async function () {
 	client				= new AppInterfaceClient( APP_PORT, { timeout: 10 });
@@ -57,7 +58,6 @@ function basic_tests () {
 
 	expect( k(agent_ctx.apps)	).to.have.length( 1 );
 	expect( k(app_client.roles)	).to.have.length( 1 );
-	expect( k(app_client.cells)	).to.have.length( 1 );
     });
 
     it("should create zome interface", async function () {
@@ -80,7 +80,9 @@ function basic_tests () {
 	    },
 	});
 
-	app_client.setCellZomelets( "role_name", cell_spec );
+	cells				= app_client.createInterface({
+	    "role_name": cell_spec
+	});
 
 	expect( cell_spec.zomes		).to.have.keys( "zome_01", "zome_02" );
 	expect( cell_spec.zomes.zome_01	).to.equal( zome_spec );
@@ -90,19 +92,19 @@ function basic_tests () {
 
 	it("should fail because cell doesn't exist", async function () {
 	    await expect_reject(async () => {
-		app_client.cells.wrong_cell;
+		cells.wrong_cell;
 	    }, "Cell 'wrong_cell' does not exist in AppClient");
 	});
 
 	it("should fail because zome doesn't exist", async function () {
 	    await expect_reject(async () => {
-		app_client.cells.role_name.zomes.wrong_zome;
+		cells.role_name.zomes.wrong_zome;
 	    }, "Zome 'wrong_zome' does not exist in ScopedCellZomelets");
 	});
 
 	it("should fail because function is not defined", async function () {
 	    await expect_reject(async () => {
-		app_client.cells.role_name.zomes.zome_01.functions.wrong_func;
+		cells.role_name.zomes.zome_01.functions.wrong_func;
 	    }, "'wrong_func' does not have a defined function in ScopedZomelet");
 	});
 
