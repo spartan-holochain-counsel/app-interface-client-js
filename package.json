@@ -1,6 +1,6 @@
 {
   "name": "@spartan-hc/app-interface-client",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A Javascript client for communicating with Holochain's App Interface API",
   "type": "module",
   "main": "src/node.js",
