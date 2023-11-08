@@ -71,13 +71,11 @@ export class AppInterfaceClient extends Base {
     }
 
     get name () {
-	console.log("Connection URI:", this.conn._uri );
 	return `${this.conn._uri} (${this.agents.size} agents)`;
     }
 
     get agents () {
 	return Object.fromEntries( this.#agents );
-	// return Object.assign( {}, this.#agents );
     }
 
     get conn () {
@@ -85,8 +83,10 @@ export class AppInterfaceClient extends Base {
     }
 
     agent ( pubkey ) {
-	if ( this.#agents.get( pubkey ) )
-	    throw new Error(`Agent ${pubkey} is already set`);
+	pubkey				= new AgentPubKey( pubkey );
+
+	if ( this.#agents.has( pubkey ) )
+	    return this.#agents.get( pubkey );
 
 	const agent_ctx			= new AgentContext( this, pubkey, this.set_options );
 

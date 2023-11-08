@@ -434,7 +434,7 @@ export class CallContext extends Base {
 	    // Top context should be the only one who logs.  Otherwise, there would be many
 	    // duplicate logs
 	    if ( err )
-		this.log.error("%s%s", prefix, msg );
+		this.log.error("%s%s; Failure: %s", prefix, msg, String(err) );
 	    else
 		this.log.normal("%s%s", prefix, msg );
 	}
