@@ -144,9 +144,12 @@ function basic_tests () {
 	expect( k(app_client.roles)	).to.have.length( 1 );
     });
 
-    it("should use ORM interface", async function () {
+    it("should initialize test DNA", async function () {
 	this.timeout( 30_000 );
+	await app_client.call( "content", "content_csr", "whoami" );
+    });
 
+    it("should use ORM interface", async function () {
 	const content			= {
 	    "name": "intro",
 	    "content": "Welcome!",

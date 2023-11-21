@@ -3,6 +3,9 @@ const log				= new Logger("scoped-interfaces", (import.meta.url === import.meta.
 
 import json				from '@whi/json';
 import {
+    DnaHash,
+}					from '@spartan-hc/holo-hash';
+import {
     CellZomelets,
     Zomelet,
 }					from '@spartan-hc/zomelets';
@@ -23,21 +26,28 @@ import {
 export class ScopedCellZomelets extends Base {
     #client				= null;
     #role				= null;
+    #is_virtual				= null;
+    #dna				= null;
     #spec				= null;
     #zomes				= null;
     #orm				= null;
 
-    constructor ( client, role, cell_spec, options ) {
+    constructor ( client, role, virtual, dna, cell_spec, options ) {
 	if ( arguments[0]?.constructor?.name === "ScopedCellZomelets" )
 	    return arguments[0];
 
 	const zomelets			= new CellZomelets( cell_spec );
+
+	if ( dna !== null )
+	    dna				= new DnaHash( dna );
 
 	// console.log("CellZomelets set options:", zomelets.options, options );
 	super( zomelets.options, options );
 
 	this.#client			= client;
 	this.#role			= role;
+	this.#is_virtual		= !!virtual;
+	this.#dna			= dna;
 	this.#spec			= zomelets;
 	this.#zomes			= new ZomesProxy( {}, `ScopedCellZomelets '${this.role}'` );
 	this.#orm			= new ORMProxy( {}, ( name ) => {
@@ -59,6 +69,14 @@ export class ScopedCellZomelets extends Base {
 	return this.#role;
     }
 
+    get is_virtual () {
+	return this.#is_virtual;
+    }
+
+    get dna () {
+	return this.#dna;
+    }
+
     get spec () {
 	return this.#spec;
     }
@@ -75,14 +93,20 @@ export class ScopedCellZomelets extends Base {
 	return new ScopedZomelet( this, name, zome_spec, this.set_options );
     }
 
-    async call ( ...args ) {
+    async call ( ctx, ...args ) {
+	// If the role maps to a virtual cell, we must throw a "VirtualCellError"
+	if ( this.dna === null )
+	    throw new Error(`Virtual cells cannot be called directly; use <AppClient>.createVirtualCellInterface( ... ) instead`);
+
 	const input			= await this.spec.processInput( args ) || args;
-	const output			= await this.client.call( this.role, ...input ) ;
+	const output			= this.is_virtual
+	      ? await this.client.callVirtual( ctx, this.role, this.dna, ...input )
+	      : await this.client.call( this.role, ...input );
 
 	return await this.spec.processOutput( output );
     }
 }
-utils.set_tostringtag( ScopedCellZomelets, "ScopedCellZomelets" );
+utils.set_tostringtag( ScopedCellZomelets );
 
 
 export class ScopedZomelet extends Base {
@@ -92,6 +116,10 @@ export class ScopedZomelet extends Base {
     #cells				= null;
     #zomes				= null;
     #functions				= null;
+    #virtual				= {
+	"cells": {},
+    };
+    #virtual_dnas			= null;
     #orm				= null;
     #latest_context			= null;
 
@@ -113,6 +141,7 @@ export class ScopedZomelet extends Base {
 	this.#cells			= new CellsProxy( {}, `ScopedZomelet '${this.name}'` );
 	this.#zomes			= new ZomesProxy( {}, `ScopedZomelet '${this.name}'` );
 	this.#functions			= new FunctionsProxy( {}, `ScopedZomelet '${this.name}'` );
+	this.#virtual_dnas		= new CellsProxy( {}, `ScopedZomelet '${this.name}'` );
 	this.#orm			= new ORMProxy( {}, ( name ) => {
 	    function noop_handler ( args ) {
 		return this.call( args );
@@ -127,12 +156,16 @@ export class ScopedZomelet extends Base {
 	for ( let [role_name, cell_spec] of Object.entries( this.spec.cells ) ) {
 	    // Create a scoped cell for the role
 	    this.log.trace("Adding peer cell '%s' to Zomelet (%s):", role_name, this.name, cell_spec );
-	    this.#cells[ role_name ]	= this.cell.client.createCellInterface( role_name, cell_spec );
+	    this.#cells[ role_name ]	= this.cell.client.createCellInterface(
+		role_name, cell_spec
+	    );
 	}
 
 	// Peer zomes from the perspective of this zomelet
 	for ( let [name, peer_spec] of Object.entries( this.spec.zomes ) ) {
-	    this.#zomes[ name ]		= new ScopedZomelet( scoped_cell, name, peer_spec, this.set_options );
+	    this.#zomes[ name ]		= new ScopedZomelet(
+		scoped_cell, name, peer_spec, this.set_options
+	    );
 	}
 	this.log.debug("ScopedZomelet '%s' has %s peer zomes: %s", () => [
 	    this.name, Object.keys(this.zomes).length, Object.keys(this.zomes)
@@ -140,6 +173,32 @@ export class ScopedZomelet extends Base {
 
 	for ( let [name, handler] of Object.entries( this.spec.handlers ) ) {
 	    this.#functions[ name ]	= this.#contextWrapper( name, handler );
+	}
+
+	if ( this.spec.virtual_cells ) {
+	    // Virtual peer cells from the perspective of this zomelet
+	    this.log.trace("Adding virtual peer cells to Zomelet (%s):", this.name, this.spec.virtual_cells );
+	    for ( let [role_name, cell_spec] of Object.entries( this.spec.virtual_cells ) ) {
+		this.log.trace("Adding virtual peer cell '%s' to Zomelet (%s):", () => [
+		    role_name, this.name, cell_spec
+		]);
+
+		const virtual_cell	= this.cell.client.createVirtualCellInterface(
+		    role_name, cell_spec
+		);
+
+		this.#virtual.cells[ role_name ] = ( dna ) => {
+		    this.log.trace("Checking virtual DNAs for '%s'", dna );
+		    if ( dna in this.#virtual_dnas )
+			return this.#virtual_dnas[ dna ];
+
+		    const scoped_cell	= virtual_cell( dna );
+
+		    this.#virtual_dnas[ dna ] = scoped_cell;
+
+		    return scoped_cell;
+		};
+	    }
 	}
     }
 
@@ -201,6 +260,10 @@ export class ScopedZomelet extends Base {
 	return this.#functions;
     }
 
+    get virtual () {
+	return Object.assign( {}, this.#virtual );
+    }
+
     get orm () {
 	return this.#orm;
     }
@@ -209,15 +272,15 @@ export class ScopedZomelet extends Base {
 	return this.#latest_context;
     }
 
-    async call ( ...args ) {
+    async call ( ctx, ...args ) {
 	this.log.trace("ScopedZomelet: %s", this.name );
 	const input			= await this.spec.processInput( args ) || args;
-	const output			= await this.cell.call( this.name, ...input ) ;
+	const output			= await this.cell.call( ctx, this.name, ...input ) ;
 
 	return await this.spec.processOutput( output );
     }
 }
-utils.set_tostringtag( ScopedZomelet, "ScopedZomelet" );
+utils.set_tostringtag( ScopedZomelet );
 
 
 export class CallContext extends Base {
@@ -234,6 +297,11 @@ export class CallContext extends Base {
     #cells				= null;
     #zomes				= null;
     #functions				= null;
+    #virtual				= {
+	"cells": {},
+    };
+    #virtual_cells			= null;
+    #virtual_dnas			= null;
     #tree				= [];
 
     constructor ( scoped_zome, fn_name, args = null, call_options, parent_ctx ) {
@@ -254,36 +322,75 @@ export class CallContext extends Base {
 	this.#cells			= new PeerCellsProxy( {}, this.zome.name );
 	this.#zomes			= new PeerZomesProxy( {}, this.zome.name );
 	this.#functions			= new PeerFunctionsProxy( {}, this.zome.name );
+	this.#virtual_cells		= new PeerCellsProxy( {}, this.zome.name );
+	this.#virtual_dnas		= new CellsProxy( {}, `CallContext '${this.name}'` );
 	this.#position			= this.parent?.children.length || 0;
 
+	// IDEA:
+	//   - `this.cells[ role ]()` - expects peer cell
+	//   - `this.cells[ role ]( dna )` - expects a virtual peer cell but returns a peer cell if one matches
+
 	// Setup for calling peer cells
-	this.log.trace("Setup peer cells for CallContext (%s):", this.name, scoped_zome.cells );
-	for ( let [role, peer_cell] of Object.entries( scoped_zome.cells ) ) {
-	    const zomes_map		= this.#cells[ role ];
-
-	    this.log.trace("Setup zomes for peer cell '%s' for CallContext (%s):", role, this.name, peer_cell.zomes );
-	    for ( let [zome_name, cell_zome] of Object.entries( peer_cell.zomes ) ) {
-		const funcs_map		= zomes_map[ zome_name ];
-
-		this.log.trace("Setup functions for peer cell::zome '%s::%s' for CallContext (%s):", role, zome_name, this.name, cell_zome.functions );
-		for ( let [name, handler] of Object.entries( cell_zome.functions ) ) {
-		    funcs_map[ name ]	= this.#heritageWrapper( name, handler );
-		}
-	    }
-	}
+	this.#cellsHeritageWrapper( this.#cells, scoped_zome.cells );
 
 	// Setup for calling peer zomes
-	for ( let [name, peer_zome] of Object.entries( scoped_zome.zomes ) ) {
-	    const funcs_map		= this.#zomes[ name ];
-
-	    for ( let [name, handler] of Object.entries( peer_zome.functions ) ) {
-		funcs_map[ name ]	= this.#heritageWrapper( name, handler );
-	    }
-	}
+	this.#zomesHeritageWrapper( this.cell.role, this.#zomes, scoped_zome.zomes );
 
 	// Setup for calling peer functions
-	for ( let [name, handler] of Object.entries( scoped_zome.functions ) ) {
-	    this.#functions[ name ]	= this.#heritageWrapper( name, handler );
+	this.#functionsHeritageWrapper( this.#functions, scoped_zome.functions );
+
+	// Setup for calling virtual peer cells
+	this.log.trace("Setup virtual peer cells for CallContext (%s):", () => [
+	    this.name, scoped_zome.virtual.cells
+	]);
+	Object.entries( scoped_zome.virtual.cells ).forEach( ([role, virtual_cell_init]) => {
+	    this.#virtual.cells[ role ] = ( dna ) => {
+		// Don't run setup again if the virtual cell was already initialized for the given
+		// DNA hash
+		if ( dna in this.#virtual_dnas )
+		    return this.#virtual_cells[ dna ];
+
+		this.log.trace("Setup virtual peer cell '%s' [%s] for CallContext (%s)", () => [
+		    role, dna, this.name
+		]);
+		const peer_cell		= virtual_cell_init( dna );
+
+		// Remember the cell instance scoped to the given DNA
+		this.#virtual_dnas[ dna ] = peer_cell;
+
+		const zomes_map		= this.#virtual_cells[ dna ];
+
+		this.#zomesHeritageWrapper( role, zomes_map, peer_cell.zomes );
+
+		return zomes_map;
+	    };
+	});
+    }
+
+    #cellsHeritageWrapper ( cells_map, source ) {
+	this.log.trace("Setup peer cells for CallContext (%s):", this.name, source );
+	for ( let [role, peer_cell] of Object.entries( source ) ) {
+	    this.log.trace("Setup zomes for peer cell '%s' for CallContext (%s):", () => [
+		role, this.name, peer_cell.zomes
+	    ]);
+	    this.#zomesHeritageWrapper( role, cells_map[ role ], peer_cell.zomes );
+	}
+    }
+
+    #zomesHeritageWrapper ( role, zomes_map, source ) {
+	this.log.trace("Setup peer zomes for CallContext (%s):", this.name, source );
+	for ( let [zome_name, cell_zome] of Object.entries( source ) ) {
+	    this.log.trace("Setup functions for peer cell::zome '%s::%s' for CallContext (%s):", () => [
+		role, zome_name, this.name, cell_zome.functions
+	    ]);
+	    this.#functionsHeritageWrapper( zomes_map[ zome_name ], cell_zome.functions );
+	}
+    }
+
+    #functionsHeritageWrapper ( target, source ) {
+	this.log.trace("Setup peer functions for CallContext (%s):", this.name, source );
+	for ( let [key, handler] of Object.entries( source ) ) {
+	    target[ key ]		= this.#heritageWrapper( key, handler );
 	}
     }
 
@@ -292,8 +399,11 @@ export class CallContext extends Base {
 	const self			= this;
 
 	return async function ( ...args ) {
-	    self.log.debug("Wrapped function '%s' in CallContext", name, self );
-	    return await handler.call( self, ...args );
+	    const $this			= this?.constructor?.name === "CallContext"
+		  ? this
+		  : self;
+	    $this.log.debug("Wrapped function '%s' in CallContext", name, $this );
+	    return await handler.call( $this, ...args );
 	}
     }
 
@@ -375,6 +485,10 @@ export class CallContext extends Base {
 	return Object.assign( {}, this.#functions );
     }
 
+    get virtual () {
+	return Object.assign( {}, this.#virtual );
+    }
+
     get tree () {
 	return this.#tree.slice();
     }
@@ -418,6 +532,10 @@ export class CallContext extends Base {
     }
 
     addTreeLog ( msg, err = null, prefix = "" ) {
+	// Only track logs if this call context has not been ended
+	if ( this.end_time )
+	    return;
+
 	this.#tree.push([ prefix, msg , err ]);
 
 	// If this context has a parent, we need to pass the tree log upwards and add the prefix.
@@ -441,6 +559,9 @@ export class CallContext extends Base {
     }
 
     childContext ( scoped_zome, fn_name, args, options ) {
+	if ( this.end_time )
+	    throw new Error(`Cannot create subcalls after context has ended`);
+
 	// Inherit current options but allow override
 	const inherited_options		= Object.assign( this.call_options, options );
 	const child_ctx			= new CallContext( scoped_zome, fn_name, args, inherited_options, this );
@@ -449,6 +570,14 @@ export class CallContext extends Base {
 	} finally {
 	    this.#children.push( child_ctx );
 	}
+    }
+
+    getCellInterface ( role, dna ) {
+	// If the DNA matches our peer cell, we can call it directly
+	if ( role in this.zome.cells && String(this.zome.cells[ role ].dna) == String(dna) )
+	    return this.cells[ role ];
+	else
+	    return this.virtual.cells[ role ]( dna );
     }
 
     // Note: virtual functions are functions that don't run this
@@ -462,7 +591,12 @@ export class CallContext extends Base {
 	if ( typeof options === "number" )
 	    options			= { "timeout": options };
 
-	return await this.#zome.call( this.func, args, options );
+	return await this.#zome.call( this, this.func, args, options );
+    }
+
+    cancel () {
+	if ( this.end_time === null )
+	    this.end();
     }
 
     end () {
@@ -471,11 +605,15 @@ export class CallContext extends Base {
 
 	this.#end_time			= new Date();
 
+	for ( let subcall of this.children ) {
+	    subcall.cancel();
+	}
+
 	if ( !this.parent && this.call_options?.printFinalTree )
 	    this.printTree();
     }
 }
-utils.set_tostringtag( CallContext, "CallContext" );
+utils.set_tostringtag( CallContext );
 
 
 export default {

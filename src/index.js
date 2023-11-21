@@ -135,7 +135,7 @@ export class AppInterfaceClient extends Base {
 	return decode( await this.request( "call_zome", call_spec, options ) );
     }
 }
-utils.set_tostringtag( AppInterfaceClient, "AppInterfaceClient" );
+utils.set_tostringtag( AppInterfaceClient );
 
 
 export class AgentContext extends Base {
@@ -236,12 +236,13 @@ export class AgentContext extends Base {
     }
 
 }
-utils.set_tostringtag( AgentContext, "AgentContext" );
+utils.set_tostringtag( AgentContext );
 
 
 export class AppClient extends Base {
     #agent				= null;
     #roles				= {};
+    #virtual_roles			= {};
     #orm				= null;
 
     constructor ( agent_ctx, roles, options ) {
@@ -285,8 +286,48 @@ export class AppClient extends Base {
 	return Object.keys( this.#roles );
     }
 
+    get virtual_roles () {
+	return Object.assign( {}, this.#virtual_roles );
+    }
+
+    get virtualRoleNames () {
+	return Object.keys( this.#virtual_roles );
+    }
+
     get orm () {
 	return this.#orm;
+    }
+
+    getRoleDnaHash ( role ) {
+	if ( role in this.roles )
+	    return this.roles[ role ];
+
+	if ( role in this.virtual_roles )
+	    return null;
+
+	throw new Error(`Role '${role}' is not in client; available roles ${this.roleNames.join(", ")} [vituals: ${this.virtualRoleNames.join(", ")}]`);
+    }
+
+    createVirtualCells ( config ) {
+	for ( let [role, forwarder] of Object.entries( config ) ) {
+	    this.createVirtualCell( role, forwarder );
+	}
+    }
+
+    createVirtualCell ( name, forwarder ) {
+	const self			= this;
+
+	this.#virtual_roles[ name ]	= async function ( ctx, dna, zome, func, args, opts ) {
+	    return await forwarder.call( ctx, name, dna, zome, func, args, opts );
+	};
+    }
+
+    createVirtualCellInterface ( role, cell_spec ) {
+	const self			= this;
+
+	return function ( dna ) {
+	    return new ScopedCellZomelets( self, role, true, dna, cell_spec, self.set_options );
+	};
     }
 
     createInterface ( config ) {
@@ -300,11 +341,11 @@ export class AppClient extends Base {
     }
 
     createCellInterface ( role, cell_spec ) {
-	// Verify that there is a matching role name
-	if ( !(role in this.roles) )
-	    throw new Error(`Role '${role}' is not in client: ${Object.keys(this.roles)}`);
+	const dna_hash			= this.getRoleDnaHash( role );
 
-	return new ScopedCellZomelets( this, role, cell_spec, this.set_options );
+	// DNA hash might be 'null' because virtual cells are allowed to be referenced by a
+	// ScopedCellZomelets instance but the instance will fail if any function is called.
+	return new ScopedCellZomelets( this, role, false, dna_hash, cell_spec, this.set_options );
     }
 
     createZomeInterface ( role, zome_name, zome_spec ) {
@@ -313,17 +354,26 @@ export class AppClient extends Base {
 	}).zomes[ zome_name ];
     }
 
+    async callVirtual ( ctx, role, ...args ) {
+	const handler			= this.virtual_roles[ role ];
+
+	if ( !handler )
+	    throw new Error(`Virtual role '${role}' has not been defined in client: ${this.name}; available virtual roles are ${this.virtualRoleNames.join(', ')}`);
+
+	return await handler( ctx, ...args );
+    }
+
     async call ( role, ...args ) {
 	const dna_hash			= this.roles[ role ];
 
 	if ( !dna_hash )
-	    throw new Error(`Role '${role}' is not in client: ${Object.keys(this.roles)}; available roles are ${this.roleNames.join(', ')}`);
+	    throw new Error(`Role '${role}' is not in client: ${this.name}; available roles are ${this.roleNames.join(', ')}`);
 
 	return await this.agent.call( dna_hash, ...args );
     }
 
 }
-utils.set_tostringtag( AppClient, "AppClient" );
+utils.set_tostringtag( AppClient );
 
 
 export default {

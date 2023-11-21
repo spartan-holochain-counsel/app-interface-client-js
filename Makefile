@@ -11,40 +11,40 @@ node_modules:		package-lock.json
 	touch $@
 build:			node_modules
 
-use-local-holo-hash:
-	cd tests; npm uninstall @spartan-hc/holo-hash
-	cd tests; npm install --save ../../holo-hash-js/
-use-npm-holo-hash:
-	cd tests; npm uninstall @spartan-hc/holo-hash
-	cd tests; npm install --save @spartan-hc/holo-hash
+npm-reinstall-local:
+	cd tests; npm uninstall $(NPM_PACKAGE); npm i --save $(LOCAL_PATH)
+npm-reinstall-public:
+	cd tests; npm uninstall $(NPM_PACKAGE); npm i --save $(NPM_PACKAGE)
 
-use-local-serialization:
-	cd tests; npm uninstall @spartan-hc/holochain-serialization
-	cd tests; npm install --save ../../holochain-serialization-js/
-use-npm-serialization:
-	cd tests; npm uninstall @spartan-hc/holochain-serialization
-	cd tests; npm install --save @spartan-hc/holochain-serialization
+npm-use-holo-host-public:
+npm-use-holo-host-local:
+npm-use-holo-host-%:
+	NPM_PACKAGE=@spartan-hc/holo-host LOCAL_PATH=../../holo-host-js make npm-reinstall-$*
 
-use-local-websocket:
-	cd tests; npm uninstall @spartan-hc/holochain-websocket
-	cd tests; npm install --save ../../holochain-websocket-js/
-use-npm-websocket:
-	cd tests; npm uninstall @spartan-hc/holochain-websocket
-	cd tests; npm install --save @spartan-hc/holochain-websocket
+npm-use-serialization-public:
+npm-use-serialization-local:
+npm-use-serialization-%:
+	NPM_PACKAGE=@spartan-hc/holochain-serialization LOCAL_PATH=../../holochain-serialization-js make npm-reinstall-$*
 
-use-local-admin-client:
-	cd tests; npm uninstall @spartan-hc/holochain-admin-client
-	cd tests; npm install --save-dev ../../holochain-admin-client-js/
-use-npm-admin-client:
-	cd tests; npm uninstall @spartan-hc/holochain-admin-client
-	cd tests; npm install --save-dev @spartan-hc/holochain-admin-client
+npm-use-websocket-public:
+npm-use-websocket-local:
+npm-use-websocket-%:
+	NPM_PACKAGE=@spartan-hc/holochain-websocket LOCAL_PATH=../../holochain-websocket-js make npm-reinstall-$*
 
-use-local-backdrop:
-	cd tests; npm uninstall @spartan-hc/holochain-backdrop
-	cd tests; npm install --save-dev ../../node-holochain-backdrop/
-use-npm-backdrop:
-	cd tests; npm uninstall @spartan-hc/holochain-backdrop
-	cd tests; npm install --save-dev @spartan-hc/holochain-backdrop
+npm-use-admin-client-public:
+npm-use-admin-client-local:
+npm-use-admin-client-%:
+	NPM_PACKAGE=@spartan-hc/holochain-admin-client LOCAL_PATH=../../holochain-admin-client-js make npm-reinstall-$*
+
+npm-use-backdrop-public:
+npm-use-backdrop-local:
+npm-use-backdrop-%:
+	NPM_PACKAGE=@spartan-hc/holochain-backdrop LOCAL_PATH=../../node-holochain-backdrop make npm-reinstall-$*
+
+npm-use-zomelets-public:
+npm-use-zomelets-local:
+npm-use-zomelets-%:
+	NPM_PACKAGE=@spartan-hc/zomelets LOCAL_PATH=../../zomelets-js make npm-reinstall-$*
 
 
 MOCHA_OPTS		= -t 15000
