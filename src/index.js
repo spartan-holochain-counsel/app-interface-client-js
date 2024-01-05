@@ -62,6 +62,14 @@ export class AppInterfaceClient extends Base {
 	super( options );
 
 	this.#conn			= new Connection( connection );
+
+	this.conn.on(`signal`, payload => {
+	    this.log.debug("%s - recv signal (agent: %s)", this.name, payload.agent );
+	    const event_name		= `signal/${payload.agent}`
+	    this.emit( event_name, payload );
+	    this.log.debug("%s - emit signal 'signal/%s' to %s listeners", () => [
+		this.name, payload.agent, this.listenerCount( event_name ) ]);
+	});
     }
 
     async close ( timeout ) {
@@ -71,7 +79,7 @@ export class AppInterfaceClient extends Base {
     }
 
     get name () {
-	return `${this.conn._uri} (${this.agents.size} agents)`;
+	return `[#${this.id}] ${this.conn._uri} (${Object.keys(this.agents).length} agents)`;
     }
 
     get agents () {
@@ -156,6 +164,15 @@ export class AgentContext extends Base {
 	this.#cell_agent		= new AgentPubKey( cell_agent );
 
 	this.#setup			= this.setCapabilityAgent();
+
+	this.log.info("Listening for 'signal/%s' events", this.cell_agent );
+	this.client.on(`signal/${this.cell_agent}`, payload => {
+	    this.log.debug("%s - recv signal (DNA: %s)", this.name, payload.dna );
+	    const event_name		= `signal/${payload.dna}`;
+	    this.emit( event_name, payload );
+	    this.log.debug("%s - emit signal 'signal/%s' to %s listeners", () => [
+		this.name, payload.dna, this.listenerCount( event_name ) ]);
+	});
     }
 
     get name () {
@@ -260,6 +277,20 @@ export class AppClient extends Base {
 
 	for ( let [name, dna_hash] of Object.entries( roles ) ) {
 	    this.#roles[ name ]	= new DnaHash( dna_hash );
+
+	    this.agent.on(`signal/${this.roles[name]}`, payload => {
+		this.log.debug("%s - recv signal (role: %s)", this.name, name );
+		const role_payload	= {
+		    "role": name,
+		    ...payload,
+		};
+
+		for ( let event_name of [ `signal/${name}`, "signal/*" ] ) {
+		    this.emit( event_name, role_payload );
+		    this.log.debug("%s - emit signal '%s' to %s listeners", () => [
+			this.name, event_name, this.listenerCount( event_name ) ]);
+		}
+	    });
 	}
 	this.log.info("AppClient (for agent '%s') roles:", () => [
 	    this.agent.cell_agent, json.debug(this.roles)

@@ -1,4 +1,5 @@
 import { Logger }			from '@whi/weblogger';
+import Emittery				from 'emittery';
 import { heritage }			from './utils.js';
 
 
@@ -27,7 +28,7 @@ export function replacer( key, value ) {
 }
 
 
-export class Base {
+export class Base extends Emittery {
     static defaults		= {
 	"logging": "fatal",
     };
@@ -36,6 +37,8 @@ export class Base {
     #logger			= null;
 
     constructor ( ...options ) {
+	super();
+
 	Object.assign( this.#set_options, ...options );
 	Object.assign( this.#options, Base.defaults, this.constructor.defaults, ...options );
 
