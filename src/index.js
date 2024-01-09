@@ -79,7 +79,7 @@ export class AppInterfaceClient extends Base {
     }
 
     get name () {
-	return `[#${this.id}] ${this.conn._uri} (${Object.keys(this.agents).length} agents)`;
+	return `${this.conn._uri} (${Object.keys(this.agents).length} agents)`;
     }
 
     get agents () {

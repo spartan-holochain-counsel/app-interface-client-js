@@ -59,6 +59,14 @@ export class ScopedCellZomelets extends Base {
 	Object.entries( this.spec.zomes ).forEach( ([name, zome_spec]) => {
 	    this.#zomes[ name ]		= this.createZomeInterface( name, zome_spec );
 	});
+
+	this.client.on(`signal/${this.role}`, payload => {
+	    this.log.debug("%s - recv signal (role: %s)", "?", this.role );
+	    const event_name		= `signal/${payload.zome}`
+	    this.emit( event_name, payload );
+	    this.log.debug("%s - emit signal 'signal/%s' to %s listeners", () => [
+		"?", this.role, this.listenerCount( event_name ) ]);
+	});
     }
 
     get client () {
@@ -202,8 +210,9 @@ export class ScopedZomelet extends Base {
 	}
 
 	if ( this.spec.signals ) {
-	    this.cell.client.on(`signal/${this.name}`, ({ signal }) => {
+	    this.cell.on(`signal/${this.name}`, ({ signal }) => {
 		try {
+		    this.log.debug("%s - recv signal (zome: %s)", "?", this.name );
 		    const handler		= this.spec.signals[ signal.type ];
 
 		    if ( typeof handler === "function" )
