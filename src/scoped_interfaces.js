@@ -171,7 +171,7 @@ export class ScopedZomelet extends Base {
 	    this.name, Object.keys(this.zomes).length, Object.keys(this.zomes)
 	]);
 
-	for ( let [name, handler] of Object.entries( this.spec.handlers ) ) {
+	for ( let [name, handler] of Object.entries( this.spec.functions ) ) {
 	    this.#functions[ name ]	= this.#contextWrapper( name, handler );
 	}
 
@@ -199,6 +199,19 @@ export class ScopedZomelet extends Base {
 		    return scoped_cell;
 		};
 	    }
+	}
+
+	if ( this.spec.signals ) {
+	    this.cell.client.on(`signal/${this.name}`, ({ signal }) => {
+		try {
+		    const handler		= this.spec.signals[ signal.type ];
+
+		    if ( typeof handler === "function" )
+			handler( signal.data );
+		} catch (err) {
+		    console.log(err);
+		}
+	    });
 	}
     }
 

@@ -371,7 +371,7 @@ export class AppClient extends Base {
 	return cells;
     }
 
-    createCellInterface ( role, cell_spec ) {
+    createCellInterface ( role, cell_spec = {} ) {
 	const dna_hash			= this.getRoleDnaHash( role );
 
 	// DNA hash might be 'null' because virtual cells are allowed to be referenced by a

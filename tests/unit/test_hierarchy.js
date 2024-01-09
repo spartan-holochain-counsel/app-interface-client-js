@@ -67,7 +67,7 @@ function basic_tests () {
 	    },
 	});
 
-	expect( zome_spec.handlers	).to.have.keys( "some_zome_fn" );
+	expect( zome_spec.functions	).to.have.keys( "some_zome_fn" );
     });
 
     it("should create cell interface", async function () {

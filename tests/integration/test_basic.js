@@ -115,7 +115,7 @@ const content_spec			= new CellZomelets({
 	    }
 	},
     },
-}, {
+}, null, {
     // "logging": "debug",
 });
 
