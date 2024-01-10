@@ -10,4 +10,4 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 serde = "1"
 rmpv = { version = "1.0.0", features = ["with-serde"] }
-whi_hdk_extensions = "0.2.1"
+whi_hdk_extensions = { git = "https://github.com/mjbrisebois/rust-hdk-extensions.git", rev = "f115791d05c35de974968fa4a867b2f13f6e6a0b" }
