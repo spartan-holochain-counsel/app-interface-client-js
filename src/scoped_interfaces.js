@@ -2,6 +2,7 @@ import { Logger }			from '@whi/weblogger';
 const log				= new Logger("scoped-interfaces", (import.meta.url === import.meta.main) && process.env.LOG_LEVEL );
 
 import json				from '@whi/json';
+import { encode, decode }		from '@msgpack/msgpack';
 import {
     DnaHash,
 }					from '@spartan-hc/holo-hash';
@@ -216,7 +217,7 @@ export class ScopedZomelet extends Base {
 		    const handler		= this.spec.signals[ signal.type ];
 
 		    if ( typeof handler === "function" )
-			handler( signal.data );
+			handler( decode(encode(signal.data)) );
 		} catch (err) {
 		    console.log(err);
 		}
