@@ -30,25 +30,28 @@ import {
 
 const __dirname				= path.dirname( new URL(import.meta.url).pathname );
 const DNA_PATH				= path.join( __dirname, "../content_dna.dna" );
-const APP_PORT				= 23_567;
 let agents				= {};
+let app_port;
 
 describe("App Client", function () {
     const holochain			= new Holochain({
 	"timeout": 60_000,
-	"default_stdout_loggers": process.env.LOG_LEVEL === "trace",
+	"default_stdout_loggers": log.level_rank > 3,
     });
 
     before(async function () {
 	this.timeout( 60_000 );
 
-	const actors			= await holochain.backdrop({
-	    "test": {
+	const actors			= await holochain.install([
+	    "alice",
+	], {
+	    "app_name": "test",
+	    "bundle": {
 		"content": DNA_PATH,
 	    },
-	}, {
-	    "app_port": APP_PORT,
 	});
+
+	app_port			= await holochain.ensureAppPort();
     });
 
     linearSuite("Basic", basic_tests );
@@ -130,7 +133,7 @@ function basic_tests () {
     let content_zome;
 
     it("should create app interface client", async function () {
-	client				= new AppInterfaceClient( APP_PORT, {
+	client				= new AppInterfaceClient( app_port, {
 	    "logging": process.env.LOG_LEVEL || "normal",
 	});
 
@@ -181,8 +184,7 @@ function basic_tests () {
 	// content_csr.prevCall().printTree( true ); // color
 	expect( addr			).to.be.a("ActionHash");
 
-	const result			= await content_zome.content( content );
-	// content_csr.prevCall().printTree( false ); // no color
+	const result			= await content_zome.get_content({ "id": addr });
 	expect( result			).to.deep.equal( content );
     });
 

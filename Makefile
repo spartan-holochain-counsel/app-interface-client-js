@@ -47,27 +47,28 @@ npm-use-zomelets-%:
 	NPM_PACKAGE=@spartan-hc/zomelets LOCAL_PATH=../../zomelets-js make npm-reinstall-$*
 
 
-MOCHA_OPTS		= -t 15000
 #
 # Testing
 #
-CONTENT_DNA			= tests/content_dna.dna
-TEST_DNAS			= $(CONTENT_DNA)
+DEBUG_LEVEL	       ?= warn
+TEST_ENV_VARS		= LOG_LEVEL=$(DEBUG_LEVEL)
+MOCHA_OPTS		= -t 15000 -n enable-source-maps
+
+CONTENT_DNA		= tests/content_dna.dna
+TEST_DNAS		= $(CONTENT_DNA)
 
 tests/%.dna:			FORCE
 	cd tests; make $*.dna
-test:				test-unit	test-integration
-test-debug:			test-unit-debug	test-integration-debug
 
-test-unit:		build
-	LOG_LEVEL=fatal npx mocha $(MOCHA_OPTS) ./tests/unit
-test-unit-debug:	build
-	LOG_LEVEL=trace npx mocha $(MOCHA_OPTS) ./tests/unit
+test:
+	make -s test-unit
+	make -s test-integration
+
+test-unit:			build
+	$(TEST_ENV_VARS) npx mocha $(MOCHA_OPTS) ./tests/unit
 
 test-integration:		build $(CONTENT_DNA)
-	LOG_LEVEL=fatal npx mocha $(MOCHA_OPTS) ./tests/integration
-test-integration-debug:		build $(CONTENT_DNA)
-	LOG_LEVEL=trace npx mocha $(MOCHA_OPTS) ./tests/integration
+	$(TEST_ENV_VARS) npx mocha $(MOCHA_OPTS) ./tests/integration
 
 
 

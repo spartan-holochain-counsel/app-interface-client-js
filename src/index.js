@@ -225,16 +225,17 @@ export class AgentContext extends Base {
 	this.log.trace("AgentContext.call( %s, %s, %s, ... ) [timeout: %s]", dna, zome, func, options?.timeout );
 	const client_agent		= this.client_agent;
 	const cell_agent		= this.cell_agent;
+	const payload			= encode( args );
 
-	this.log.trace("Raw payload", () => [
-	    json.debug(args)
+	this.log.trace("Raw payload (%s bytes)", () => [
+	    payload.length, json.debug(args),
 	]);
 	const zome_call_spec		= {
 	    "provenance":	client_agent,
 	    "cell_id":		[ dna, cell_agent ],
 	    "zome_name":	zome,
 	    "fn_name":		func,
-	    "payload":		encode( args ),
+	    "payload":		payload,
 	    "nonce":		utils.nonce(),
 	    "expires_at":	(Date.now() + (5 * 60 * 1000)) * 1000,
 	    "cap_secret":	null,
