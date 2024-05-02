@@ -35,24 +35,14 @@ import {
     CallContext,
 }					from './scoped_interfaces.js';
 
-export *				from '@spartan-hc/zomelets';
-export *				from './scoped_interfaces.js';
-
-export {
-    // Forwarded from @spartan-hc/holo-hash
-    HoloHashes,
-
-    // Forwarded from @spartan-hc/holochain-websocket
-    HolochainWebsocket,
-};
-
 
 
 export class AppInterfaceClient extends Base {
     static defaults			= {
 	"timeout":		60_000, // 60s
     };
-    #conn				= null;
+    #conn_input				= null;
+    #conns				= [];
     #agents				= new HoloHashMap();
 
     constructor ( connection, options ) {
@@ -61,33 +51,29 @@ export class AppInterfaceClient extends Base {
 
 	super( options );
 
-	this.#conn			= new Connection( connection );
-
-	this.conn.on(`signal`, payload => {
-	    this.log.debug("%s - recv signal (agent: %s)", this.name, payload.agent );
-	    const event_name		= `signal/${payload.agent}`
-	    this.emit( event_name, payload );
-	    this.log.debug("%s - emit signal 'signal/%s' to %s listeners", () => [
-		this.name, payload.agent, this.listenerCount( event_name ) ]);
-	});
+	this.#conn_input		= connection;
     }
 
     async close ( timeout ) {
-	await this.conn.open();
-
-	return await this.conn.close( timeout );
+	return await Promise.all(
+	    this.conns.map( conn => conn.close( timeout ) )
+	);
     }
 
     get name () {
-	return `${this.conn._uri} (${Object.keys(this.agents).length} agents)`;
+	return `${this.conn_input} (${Object.keys(this.agents).length} agents)`;
     }
 
     get agents () {
 	return Object.fromEntries( this.#agents );
     }
 
-    get conn () {
-	return this.#conn;
+    get conn_input () {
+	return this.#conn_input;
+    }
+
+    get conns () {
+	return this.#conns.slice();
     }
 
     agent ( pubkey ) {
@@ -103,44 +89,52 @@ export class AppInterfaceClient extends Base {
 	return agent_ctx;
     }
 
-    async app ( app_id ) {
-	const app_info			= await this.appInfo( app_id );
+    async app ( auth_token ) {
+	// The connection must be created before we can fetch the app info and get the app ID
+	const conn			= new Connection( this.#conn_input );
+	await conn.authenticate( auth_token );
 
-	this.log.trace("App info for ID '%s':", app_id, app_info );
+	this.#conns.push( conn );
+	conn.on(`signal`, payload => {
+	    this.log.debug("%s - recv signal (agent: %s)", this.name, payload.agent );
+	    const event_name		= `signal/${payload.agent}`
+	    this.emit( event_name, payload );
+	    this.log.debug("%s - emit signal 'signal/%s' to %s listeners", () => [
+		this.name, payload.agent, this.listenerCount( event_name ) ]);
+	});
+
+	const app_info			= await this.appInfo( conn );
+
+	this.log.trace("App info for ID '%s':", app_info.installed_app_id, app_info );
 	const roles			= {};
 	for ( let [name,cell] of Object.entries( app_info.roles ) ) {
 	    roles[ name ]		= cell.cell_id[0];
 	}
 
 	const agent_ctx			= this.agent( app_info.agent_pub_key );
-	const app_client		= agent_ctx.app( app_info.installed_app_id, roles );
+	const app_client		= agent_ctx.app( conn, app_info.installed_app_id, roles );
 
 	return app_client;
     }
 
-    async request ( method, args, options ) {
-	await this.conn.open();
+    async request ( conn, method, args = null, options ) {
+	await conn.open();
 
 	this.log.trace("Raw request '%s' (timeout: %s):", () => [
 	    method, options?.timeout || null, json.debug(args)
 	]);
-	return await this.conn.request( method, args, options?.timeout || this.options?.timeout );
+	return await conn.request( method, args, options?.timeout || this.options?.timeout );
     }
 
-    async appInfo ( app_id ) {
-	const app_info			= await this.request( "app_info", {
-	    "installed_app_id": app_id,
-	});
+    async appInfo ( conn ) {
+	const app_info			= await this.request( conn, "app_info" );
 
-	if ( app_info === null )
-	    throw new Error(`App ID '${app_id}' is not running`);
-
-	this.log.trace("Raw app info for ID '%s':", app_id, app_info );
+	this.log.trace("Raw app info for ID '%s':", app_info.installed_app_id, app_info );
 	return utils.reformat_app_info( app_info );
     }
 
-    async call ( call_spec, options ) {
-	return decode( await this.request( "call_zome", call_spec, options ) );
+    async call ( conn, call_spec, options ) {
+	return decode( await this.request( conn, "call_zome", call_spec, options ) );
     }
 }
 utils.set_tostringtag( AppInterfaceClient );
@@ -208,18 +202,18 @@ export class AgentContext extends Base {
 	};
     }
 
-    app ( app_id, roles ) {
+    app ( conn, app_id, roles ) {
 	if ( this.#apps[ app_id ] !== undefined )
 	    throw new Error(`App ${app_id} is already set`);
 
-	const app_client		= new AppClient( this, roles, this.set_options );
+	const app_client		= new AppClient( conn, this, roles, this.set_options );
 
 	this.#apps[ app_id ]		= app_client;
 
 	return app_client;
     }
 
-    async call ( dna, zome, func, args = null, options ) {
+    async call ( conn, dna, zome, func, args = null, options ) {
 	await this.setup;
 
 	this.log.trace("AgentContext.call( %s, %s, %s, ... ) [timeout: %s]", dna, zome, func, options?.timeout );
@@ -250,7 +244,7 @@ export class AgentContext extends Base {
 	if ( !zome_call_spec.signature )
 	    console.log("WARNING: Signed zome call is missing the signature property");
 
-	return await this.client.call( zome_call_spec, options );
+	return await this.client.call( conn, zome_call_spec, options );
     }
 
 }
@@ -258,17 +252,19 @@ utils.set_tostringtag( AgentContext );
 
 
 export class AppClient extends Base {
+    #conn				= null;
     #agent				= null;
     #roles				= {};
     #virtual_roles			= {};
     #orm				= null;
 
-    constructor ( agent_ctx, roles, options ) {
+    constructor ( conn, agent_ctx, roles, options ) {
 	if ( arguments[0]?.constructor?.name === "AppClient" )
 	    return arguments[0];
 
 	super( options );
 
+	this.#conn			= conn;
 	this.#agent			= agent_ctx;
 	this.#orm			= new ORMProxy( {}, ( role ) => {
 	    const tmp_scoped_cell	= this.createCellInterface( role );
@@ -300,6 +296,10 @@ export class AppClient extends Base {
 
     get name () {
 	return `${this.agent.cell_agent} (port: ?)`;
+    }
+
+    get conn () {
+	return this.#conn;
     }
 
     get agent () {
@@ -401,12 +401,24 @@ export class AppClient extends Base {
 	if ( !dna_hash )
 	    throw new Error(`Role '${role}' is not in client: ${this.name}; available roles are ${this.roleNames.join(', ')}`);
 
-	return await this.agent.call( dna_hash, ...args );
+	return await this.agent.call( this.conn, dna_hash, ...args );
     }
 
 }
 utils.set_tostringtag( AppClient );
 
+
+export *				from '@spartan-hc/zomelets';
+export *				from './scoped_interfaces.js';
+export *				from '@spartan-hc/holochain-websocket';
+
+export {
+    // Forwarded from @spartan-hc/holo-hash
+    HoloHashes,
+
+    // Forwarded from @spartan-hc/holochain-websocket
+    HolochainWebsocket,
+};
 
 export default {
     AppInterfaceClient,

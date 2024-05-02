@@ -31,14 +31,13 @@
     "@noble/ed25519": "^2.0.0",
     "@spartan-hc/holo-hash": "^0.6.1",
     "@spartan-hc/holochain-serialization": "^0.1.4",
-    "@spartan-hc/holochain-websocket": "^1.1.1",
+    "@spartan-hc/holochain-websocket": "^1.2.0",
     "@spartan-hc/zomelets": "^0.2.0",
     "@whi/json": "^0.1.7",
     "emittery": "^1.0.1"
   },
   "devDependencies": {
-    "@spartan-hc/holochain-backdrop": "^4.1.0",
-    "@whi/http": "^0.2.3",
+    "@spartan-hc/holochain-backdrop": "^4.3.0",
     "@whi/weblogger": "^0.4.0",
     "chai": "^4.3.4",
     "mocha": "^10.1.0",

@@ -19,6 +19,7 @@ import {
     AppInterfaceClient,
     CellZomelets,
     Zomelet,
+    Connection,
 }					from '../../src/node.js';
 
 
@@ -52,7 +53,8 @@ function basic_tests () {
     });
 
     it("should create app client", async function () {
-	app_client			= agent_ctx.app( APP_ID, {
+	const conn			= new Connection( APP_PORT );
+	app_client			= await agent_ctx.app( conn, APP_ID, {
 	    "role_name": DNA_HASH,
 	});
 

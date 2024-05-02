@@ -4,7 +4,7 @@ pub use hdk_extensions::hdi_extensions;
 pub use hdk_extensions;
 
 use hdi::prelude::*;
-use hdk::prelude::debug;
+// use hdk::prelude::debug;
 use hdi_extensions::{
     ScopedTypeConnector,
     scoped_type_connector,
@@ -57,7 +57,7 @@ pub enum LinkTypes {
 //
 #[hdk_extern]
 fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
-    debug!("Validating op: {:#?}", op );
+    // debug!("Validating op: {:#?}", op );
     match op.flattened::<EntryTypes, LinkTypes>()? {
         _ => valid!(),
     }

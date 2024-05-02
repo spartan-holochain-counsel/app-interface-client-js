@@ -32,6 +32,7 @@ const __dirname				= path.dirname( new URL(import.meta.url).pathname );
 const DNA_PATH				= path.join( __dirname, "../content_dna.dna" );
 let agents				= {};
 let app_port;
+let installations;
 
 describe("App Client", function () {
     const holochain			= new Holochain({
@@ -42,7 +43,7 @@ describe("App Client", function () {
     before(async function () {
 	this.timeout( 60_000 );
 
-	const actors			= await holochain.install([
+	installations			= await holochain.install([
 	    "alice",
 	], {
 	    "app_name": "test",
@@ -141,7 +142,8 @@ function basic_tests () {
     });
 
     it("should create app client", async function () {
-	app_client			= await client.app( "test-alice" );
+	const auth_token		= installations.alice.test.auth.token;
+	app_client			= await client.app( auth_token, "test-alice" );
 
 	expect( k(client.agents)	).to.have.length( 1 );
 	expect( k(app_client.roles)	).to.have.length( 1 );
@@ -157,7 +159,9 @@ function basic_tests () {
 	    "name": "intro",
 	    "content": "Welcome!",
 	};
-	const addr			= await app_client.orm.content.content_csr.create_content( content );
+	const addr			= await app_client.orm.content.content_csr.create_content(
+	    content
+	);
 
 	expect( addr			).to.be.a("Uint8Array");
 
