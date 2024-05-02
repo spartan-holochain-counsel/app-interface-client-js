@@ -29,7 +29,7 @@ npm i @spartan-hc/app-interface-client
 import { AppInterfaceClient } from '@spartan-hc/app-interface-client';
 
 const client = new AppInterfaceClient( app_port );
-const app_client = await client.app( app_id );
+const app_client = await client.app( auth_token );
 
 await app_client.call( "role_name", "zome_name", "fn_name", args );
 ```
