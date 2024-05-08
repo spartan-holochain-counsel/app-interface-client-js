@@ -42,6 +42,7 @@ export class AppInterfaceClient extends Base {
 	"timeout":		60_000, // 60s
     };
     #conn_input				= null;
+    #conn_opts				= null;
     #conns				= [];
     #agents				= new HoloHashMap();
 
@@ -52,6 +53,7 @@ export class AppInterfaceClient extends Base {
 	super( options );
 
 	this.#conn_input		= connection;
+	this.#conn_opts			= options.conn_options;
     }
 
     async close ( timeout ) {
@@ -70,6 +72,10 @@ export class AppInterfaceClient extends Base {
 
     get conn_input () {
 	return this.#conn_input;
+    }
+
+    get conn_opts () {
+	return this.#conn_opts;
     }
 
     get conns () {
@@ -91,7 +97,7 @@ export class AppInterfaceClient extends Base {
 
     async app ( auth_token ) {
 	// The connection must be created before we can fetch the app info and get the app ID
-	const conn			= new Connection( this.#conn_input );
+	const conn			= new Connection( this.#conn_input, this.#conn_opts );
 	await conn.authenticate( auth_token );
 
 	this.#conns.push( conn );
