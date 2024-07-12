@@ -41,7 +41,7 @@
     "@whi/weblogger": "^0.4.0",
     "chai": "^4.3.4",
     "mocha": "^10.1.0",
-    "puppeteer": "^19.8.5",
+    "puppeteer": "^22.13.0",
     "tweetnacl": "^1.0.3",
     "webpack": "^5.76.3",
     "webpack-cli": "^4.7.2",
