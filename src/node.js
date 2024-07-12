@@ -23,10 +23,10 @@ if ( global.crypto.subtle?.digest === undefined ) {
 }
 else {
     const _digest			= global.crypto.subtle.digest;
-    global.crypto.subtle.digest		= ( algorithm, bytes ) => {
+    global.crypto.subtle.digest		= function ( algorithm, bytes ) {
 	if ( bytes instanceof ArrayBuffer ) // Conversion needed for @noble/ed25519
 	    bytes			= new Uint8Array( bytes );
-	return _digest( algorithm, bytes );
+	return _digest.call( this, algorithm, bytes );
     }
 }
 
