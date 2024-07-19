@@ -3,8 +3,8 @@
 import (pkgs.fetchFromGitHub {
   owner = "spartan-holochain-counsel";
   repo = "nix-overlay";
-  rev = "f8535961730ed3a0cfe81dcf068e7da29b4f4e64";
-  sha256 = "EoIiBDqiT8nAo7I60jjWzSlwBt+bTabXw0s87REX/3w=";
+  rev = "60304b93954c201cb4e1f75eb17295789e1bf967";
+  sha256 = "qgewX2TbZdlPRkGPvyvUmo7gDj4122JGypi1uwdXcTg=";
 }) {
   inherit pkgs;
   inherit system;
