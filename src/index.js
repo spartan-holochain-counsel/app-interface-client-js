@@ -152,6 +152,7 @@ export class AgentContext extends Base {
     #cell_agent				= null;
     #client_secret			= null;
     #client_pubkey			= null;
+    #cap_secret                         = null;
     #apps				= {};
 
     constructor ( client, cell_agent, options ) {
@@ -199,8 +200,9 @@ export class AgentContext extends Base {
 	return Object.assign( {}, this.#apps );
     }
 
-    async setCapabilityAgent () {
-	this.#client_secret		= ed.utils.randomPrivateKey();
+    async setCapabilityAgent ( secret, cap_secret = null ) {
+        this.#cap_secret                = cap_secret;
+	this.#client_secret		= secret || ed.utils.randomPrivateKey();
 	this.#client_pubkey		= await ed.getPublicKeyAsync( this.#client_secret );
 
 	this.signing_handler		= async ( zome_call_hash ) => {
@@ -238,7 +240,7 @@ export class AgentContext extends Base {
 	    "payload":		payload,
 	    "nonce":		utils.nonce(),
 	    "expires_at":	(Date.now() + (5 * 60 * 1000)) * 1000,
-	    "cap_secret":	null,
+	    "cap_secret":	this.#cap_secret,
 	};
 
 	const zome_call_hash		= hashZomeCall( zome_call_spec );
