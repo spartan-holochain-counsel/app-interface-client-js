@@ -37,7 +37,7 @@
     "emittery": "^1.0.1"
   },
   "devDependencies": {
-    "@spartan-hc/holochain-backdrop": "^4.5.1",
+    "@spartan-hc/holochain-backdrop": "^4.6.0",
     "@whi/weblogger": "^0.4.0",
     "chai": "^4.3.4",
     "mocha": "^10.1.0",
